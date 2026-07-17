@@ -36,6 +36,8 @@ model User {
   notifications         Notification[]   @relation("NotificationUser")
   oauthAccounts         OAuthAccount[]   @relation("OAuthAccountUser")
   backupsTriggered      BackupHistory[]  @relation("BackupTriggeredBy")
+  articleRevisions      ArticleRevision[] @relation("ArticleRevisionEditor")
+  mediaAssetsUploaded   MediaAsset[]     @relation("MediaAssetUploader")
 
   @@index([role])
 }
@@ -102,15 +104,69 @@ model Article {
   tags          String?  // comma-separated
   isFeatured    Boolean  @default(false)
   isPublished   Boolean  @default(true)
+  publishStatus PublishStatus @default(PUBLISHED)
+  scheduledAt   DateTime?   // when to auto-publish (if SCHEDULED)
   publishedAt   DateTime @default(now())
   viewCount     Int      @default(0)
   authorId      String
   author        User     @relation(fields: [authorId], references: [id])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  // SEO metadata (Phase 4)
+  metaDescription String?  // custom meta description (default: excerpt)
+  ogTitle         String?  // custom OpenGraph title (default: title)
+  ogImage         String?  // custom OG image URL (default: featuredImage)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  revisions    ArticleRevision[]
 
   @@index([isPublished, publishedAt])
   @@index([category])
+  @@index([publishStatus])
+}
+
+enum PublishStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+model ArticleRevision {
+  id          String   @id @default(cuid())
+  articleId   String
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  version     Int
+  title       String
+  excerpt     String
+  content     String
+  editedById  String
+  editedBy    User     @relation("ArticleRevisionEditor", fields: [editedById], references: [id])
+  changeLog   String?  // optional note about what changed
+  createdAt   DateTime @default(now())
+
+  @@unique([articleId, version])
+  @@index([articleId])
+}
+
+// ============ MEDIA LIBRARY (Phase 4) ============
+
+model MediaAsset {
+  id          String   @id @default(cuid())
+  filename    String   // original filename
+  storedName  String   // unique stored filename
+  url         String   // public URL (/uploads/xxx)
+  mimeType    String
+  size        Int      // bytes
+  width       Int?
+  height      Int?
+  alt         String?  // alt text
+  caption     String?
+  uploadedById String
+  uploadedBy  User     @relation("MediaAssetUploader", fields: [uploadedById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([uploadedById])
+  @@index([mimeType])
 }
 
 // ============ EVENTS ============

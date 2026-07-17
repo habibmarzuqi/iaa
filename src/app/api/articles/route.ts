@@ -98,7 +98,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { title, excerpt, content, category, tags, isFeatured, isPublished, publishedAt, featuredImage } = body
+    const {
+      title, excerpt, content, category, tags, isFeatured, isPublished,
+      publishedAt, featuredImage,
+      // New Phase 4 fields:
+      publishStatus, scheduledAt, metaDescription, ogTitle, ogImage, authorId,
+    } = body
 
     if (!title || !content) {
       return NextResponse.json({ error: 'Title dan content wajib diisi' }, { status: 400 })
@@ -113,6 +118,9 @@ export async function POST(req: NextRequest) {
       slug = `${baseSlug}-${counter++}`
     }
 
+    // Determine isPublished from publishStatus
+    const effectiveIsPublished = publishStatus === 'PUBLISHED' ? true : (publishStatus === 'DRAFT' || publishStatus === 'SCHEDULED' ? false : isPublished !== false)
+
     const article = await db.article.create({
       data: {
         slug,
@@ -123,11 +131,27 @@ export async function POST(req: NextRequest) {
         category: category || 'Umum',
         tags: tags || null,
         isFeatured: !!isFeatured,
-        isPublished: isPublished !== false,
+        isPublished: effectiveIsPublished,
+        publishStatus: publishStatus || 'PUBLISHED',
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
         publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
-        authorId: user.id,
+        authorId: authorId || user.id,
+        metaDescription: metaDescription || null,
+        ogTitle: ogTitle || null,
+        ogImage: ogImage || null,
       },
-      include: { author: { select: { name: true } } },
+      include: { author: { select: { name: true, email: true } } },
+    })
+
+    // Create initial revision (version 1)
+    await db.articleRevision.create({
+      data: {
+        articleId: article.id,
+        version: 1,
+        title, excerpt: excerpt || '', content,
+        editedById: user.id,
+        changeLog: 'Versi awal',
+      },
     })
 
     await db.auditLog.create({
@@ -156,7 +180,13 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { title, excerpt, content, category, tags, isFeatured, isPublished, publishedAt, featuredImage, slug } = body
+    const {
+      title, excerpt, content, category, tags, isFeatured, isPublished,
+      publishedAt, featuredImage, slug,
+      // Phase 4 fields
+      publishStatus, scheduledAt, metaDescription, ogTitle, ogImage, authorId,
+      changeLog, // optional note for revision
+    } = body
 
     // If slug changed, ensure unique
     let newSlug = existing.slug
@@ -166,6 +196,12 @@ export async function PATCH(req: NextRequest) {
       if (conflict && conflict.id !== id) {
         return NextResponse.json({ error: 'Slug sudah digunakan artikel lain' }, { status: 400 })
       }
+    }
+
+    // Determine isPublished from publishStatus if provided
+    let effectiveIsPublished: boolean | undefined = isPublished
+    if (publishStatus) {
+      effectiveIsPublished = publishStatus === 'PUBLISHED'
     }
 
     const updated = await db.article.update({
@@ -178,12 +214,38 @@ export async function PATCH(req: NextRequest) {
         ...(category !== undefined && { category }),
         ...(tags !== undefined && { tags }),
         ...(isFeatured !== undefined && { isFeatured }),
-        ...(isPublished !== undefined && { isPublished }),
+        ...(effectiveIsPublished !== undefined && { isPublished: effectiveIsPublished }),
+        ...(publishStatus !== undefined && { publishStatus }),
+        ...(scheduledAt !== undefined && { scheduledAt: scheduledAt ? new Date(scheduledAt) : null }),
         ...(publishedAt !== undefined && { publishedAt: new Date(publishedAt) }),
         ...(featuredImage !== undefined && { featuredImage }),
+        ...(metaDescription !== undefined && { metaDescription: metaDescription || null }),
+        ...(ogTitle !== undefined && { ogTitle: ogTitle || null }),
+        ...(ogImage !== undefined && { ogImage: ogImage || null }),
+        ...(authorId !== undefined && { authorId }),
       },
-      include: { author: { select: { name: true } } },
+      include: { author: { select: { name: true, email: true } } },
     })
+
+    // Auto-create revision if content/excerpt/title changed
+    if (title !== undefined || excerpt !== undefined || content !== undefined) {
+      const lastRevision = await db.articleRevision.findFirst({
+        where: { articleId: id },
+        orderBy: { version: 'desc' },
+      })
+      const nextVersion = (lastRevision?.version ?? 0) + 1
+      await db.articleRevision.create({
+        data: {
+          articleId: id,
+          version: nextVersion,
+          title: title ?? existing.title,
+          excerpt: excerpt ?? existing.excerpt,
+          content: content ?? existing.content,
+          editedById: user.id,
+          changeLog: changeLog || null,
+        },
+      })
+    }
 
     await db.auditLog.create({
       data: { userId: user.id, action: 'ARTICLE_UPDATE', description: `Updated article: ${existing.title}` },
