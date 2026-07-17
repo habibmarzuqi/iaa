@@ -55,9 +55,22 @@ function iconFor(labelKey: string) {
 export function Header() {
   const { user, setView, logout } = useApp()
   const { t } = useTranslation()
+  const [siteSettings, setSiteSettings] = React.useState<Record<string, string>>({})
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [scrolled, setScrolled] = React.useState(false)
   const [searchOpen, setSearchOpen] = React.useState(false)
+
+  // Load site settings on mount
+  React.useEffect(() => {
+    fetch('/api/settings', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setSiteSettings(d.settings || {}))
+      .catch(() => {})
+  }, [])
+
+  const siteName = siteSettings['site.name'] || 'IAA Digital'
+  const siteTagline = siteSettings['site.tagline'] || 'Ikatan Arsiparis ANRI'
+  const logoUrl = siteSettings['branding.logoUrl']
 
   // Keyboard shortcut: Cmd/Ctrl+K
   React.useEffect(() => {
@@ -99,7 +112,25 @@ export function Header() {
           onClick={() => setView({ name: 'public' })}
           className="flex items-center gap-2 transition-opacity hover:opacity-80"
         >
-          <IAALogo withText />
+          {logoUrl ? (
+            <div className="flex items-center gap-2.5">
+              <img src={logoUrl} alt={siteName} className="h-9 w-9 object-contain" />
+              <div className="flex flex-col leading-none">
+                <span className="font-display font-extrabold tracking-tight text-[15px] text-navy dark:text-white">{siteName}</span>
+                <span className="text-[10px] tracking-wider uppercase mt-0.5 text-muted-foreground">{siteTagline}</span>
+              </div>
+            </div>
+          ) : siteSettings['site.name'] ? (
+            <div className="flex items-center gap-2.5">
+              <IAALogo />
+              <div className="flex flex-col leading-none">
+                <span className="font-display font-extrabold tracking-tight text-[15px] text-navy dark:text-white">{siteName}</span>
+                <span className="text-[10px] tracking-wider uppercase mt-0.5 text-muted-foreground">{siteTagline}</span>
+              </div>
+            </div>
+          ) : (
+            <IAALogo withText />
+          )}
         </button>
 
         <nav className="hidden items-center gap-0.5 xl:flex">

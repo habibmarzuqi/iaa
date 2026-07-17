@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+import { DynamicHead } from "@/components/dynamic-head";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -88,6 +89,7 @@ export default function RootLayout({
           <Toaster />
           <SonnerToaster position="top-right" richColors />
           <PWAInstallPrompt />
+          <DynamicHead />
         </ThemeProvider>
       </body>
     </html>
