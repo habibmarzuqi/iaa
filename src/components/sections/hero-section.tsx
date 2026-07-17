@@ -2,12 +2,14 @@
 
 import { motion } from 'framer-motion'
 import { useApp } from '@/lib/store'
+import { useTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ArrowRight, ShieldCheck, BookOpen, Award, Users, Sparkles, Calendar } from 'lucide-react'
 
 export function HeroSection() {
   const { setView, user } = useApp()
+  const { t } = useTranslation()
 
   return (
     <section className="relative overflow-hidden bg-hero-gradient text-white">
@@ -27,18 +29,18 @@ export function HeroSection() {
           >
             <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs font-medium text-gold backdrop-blur-sm">
               <Sparkles className="h-3.5 w-3.5" />
-              Platform Digital Organisasi Resmi
+              {t('hero.badge')}
               <span className="ml-1 h-1 w-1 rounded-full bg-gold animate-pulse" />
             </div>
 
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-tight">
-              Platform Digital <br />
-              <span className="text-gradient-gold">Ikatan Arsiparis</span> <br />
-              <span className="text-white/90">ANRI (IAA)</span>
+              {t('hero.title1')} <br />
+              <span className="text-gradient-gold">{t('hero.title2')}</span> <br />
+              <span className="text-white/90">{t('hero.title3')}</span>
             </h1>
 
             <p className="text-base lg:text-lg text-white/70 leading-relaxed max-w-xl">
-              Sistem terpadu untuk manajemen organisasi, keanggotaan, perpustakaan digital, arsip, kegiatan, dan e-certificate. Membawa profesi kearsipan Indonesia menuju era transformasi digital.
+              {t('hero.subtitle')}
             </p>
 
             <div className="flex flex-wrap gap-3">
@@ -48,7 +50,7 @@ export function HeroSection() {
                   size="lg"
                   className="bg-gold-gradient text-navy hover:opacity-90 font-semibold"
                 >
-                  Buka Dashboard
+                  {t('hero.cta.dashboard')}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
@@ -57,7 +59,7 @@ export function HeroSection() {
                   size="lg"
                   className="bg-gold-gradient text-navy hover:opacity-90 font-semibold"
                 >
-                  Masuk Portal Anggota
+                  {t('hero.cta.login')}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               )}
@@ -67,20 +69,20 @@ export function HeroSection() {
                 variant="outline"
                 className="bg-white/5 border-white/20 text-white hover:bg-white/10 hover:text-white backdrop-blur-sm"
               >
-                Tentang IAA
+                {t('hero.cta.about')}
               </Button>
             </div>
 
             {/* Stats inline */}
             <div className="flex flex-wrap gap-8 pt-6 border-t border-white/10">
               {[
-                { icon: Users, value: '2,400+', label: 'Anggota Aktif' },
-                { icon: Calendar, value: '180+', label: 'Kegiatan / Tahun' },
-                { icon: Award, value: '5,600+', label: 'Sertifikat Terbit' },
-                { icon: BookOpen, value: '1,200+', label: 'Koleksi Digital' },
+                { icon: Users, value: '2,400+', key: 'hero.stats.members' },
+                { icon: Calendar, value: '180+', key: 'hero.stats.events' },
+                { icon: Award, value: '5,600+', key: 'hero.stats.certs' },
+                { icon: BookOpen, value: '1,200+', key: 'hero.stats.library' },
               ].map((s, i) => (
                 <motion.div
-                  key={s.label}
+                  key={s.key}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 + i * 0.1 }}
@@ -89,7 +91,7 @@ export function HeroSection() {
                   <s.icon className="h-5 w-5 text-gold" />
                   <div>
                     <div className="text-lg font-bold font-display">{s.value}</div>
-                    <div className="text-[11px] text-white/60">{s.label}</div>
+                    <div className="text-[11px] text-white/60">{t(s.key)}</div>
                   </div>
                 </motion.div>
               ))}
@@ -119,10 +121,10 @@ export function HeroSection() {
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 {[
-                  { label: 'Total Anggota', value: '2,418', trend: '+12%' },
-                  { label: 'Sertifikat', value: '5,624', trend: '+8%' },
-                  { label: 'Kegiatan 2026', value: '47', trend: '+5' },
-                  { label: 'Unduhan Library', value: '34.2K', trend: '+22%' },
+                  { label: t('hero.stats.members'), value: '2,418', trend: '+12%' },
+                  { label: t('hero.stats.certs'), value: '5,624', trend: '+8%' },
+                  { label: t('hero.stats.events'), value: '47', trend: '+5' },
+                  { label: 'Library Downloads', value: '34.2K', trend: '+22%' },
                 ].map((card) => (
                   <div key={card.label} className="rounded-xl bg-white/80 dark:bg-white/5 p-3 backdrop-blur">
                     <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{card.label}</div>

@@ -16,6 +16,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { NotificationBell } from '@/components/notification-bell'
+import { LanguageSwitcher } from '@/components/language-switcher'
 import {
   Menu, LogOut, User as UserIcon, LayoutDashboard,
   FileText, Calendar, BookOpen, Users, Info, HelpCircle, Mail, Image as ImageIcon,
@@ -118,7 +120,10 @@ export function Header() {
             <span className="hidden lg:inline">Verifikasi</span>
           </button>
 
+          <LanguageSwitcher />
           <ThemeToggle />
+
+          {user && <NotificationBell />}
 
           {user ? (
             <DropdownMenu>

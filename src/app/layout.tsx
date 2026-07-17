@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -32,8 +33,19 @@ export const metadata: Metadata = {
     "Digital Platform",
   ],
   authors: [{ name: "IAA Digital" }],
+  manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.svg", sizes: "192x192", type: "image/svg+xml" },
+      { url: "/icon-512.svg", sizes: "512x512", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/icon-192.svg" }],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "IAA Digital",
   },
   openGraph: {
     title: "IAA Digital — Ikatan Arsiparis ANRI",
@@ -51,6 +63,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="application-name" content="IAA Digital" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="IAA Digital" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-config" content="/browserconfig.xml" />
+        <meta name="msapplication-TileColor" content="#0a1e3f" />
+        <meta name="msapplication-tap-highlight" content="no" />
+      </head>
       <body
         className={`${inter.variable} ${jakarta.variable} font-sans antialiased bg-background text-foreground`}
       >
@@ -63,6 +87,7 @@ export default function RootLayout({
           {children}
           <Toaster />
           <SonnerToaster position="top-right" richColors />
+          <PWAInstallPrompt />
         </ThemeProvider>
       </body>
     </html>

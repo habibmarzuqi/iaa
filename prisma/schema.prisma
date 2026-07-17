@@ -33,6 +33,9 @@ model User {
   archiveVersions       ArchiveVersion[] @relation("ArchiveVersionUploader")
   archiveAccesses       ArchiveAccess[]   @relation("ArchiveAccessUser")
   chatConversations     ChatConversation[] @relation("ChatConversationUser")
+  notifications         Notification[]   @relation("NotificationUser")
+  oauthAccounts         OAuthAccount[]   @relation("OAuthAccountUser")
+  backupsTriggered      BackupHistory[]  @relation("BackupTriggeredBy")
 
   @@index([role])
 }
@@ -441,5 +444,72 @@ model ChatMessage {
   createdAt     DateTime @default(now())
 
   @@index([conversationId])
+}
+
+// ============ NOTIFICATIONS (Phase 3) ============
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String?                      // null = broadcast ke semua user
+  user        User?    @relation("NotificationUser", fields: [userId], references: [id], onDelete: Cascade)
+  type        NotificationType
+  title       String
+  message     String
+  link        String?                      // optional route/URL
+  data        String?                      // JSON string for additional data
+  isRead      Boolean  @default(false)
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  SYSTEM
+  EVENT_REMINDER
+  REGISTRATION_STATUS
+  CERTIFICATE_ISSUED
+  ANNOUNCEMENT
+  MESSAGE
+}
+
+// ============ OAUTH ACCOUNTS (Phase 3) ============
+
+model OAuthAccount {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation("OAuthAccountUser", fields: [userId], references: [id], onDelete: Cascade)
+  provider      String                       // "google" | "microsoft" | "facebook"
+  providerAccountId String                   // unique ID from provider
+  email         String?
+  name          String?
+  avatar        String?
+  accessToken   String?
+  refreshToken  String?
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// ============ BACKUP HISTORY (Phase 3) ============
+
+model BackupHistory {
+  id          String   @id @default(cuid())
+  type        String                       // "manual" | "scheduled"
+  status      String                       // "success" | "failed" | "in_progress"
+  fileName    String
+  fileSize    Int?
+  recordCount Int?
+  triggeredById String?
+  triggeredBy User?    @relation("BackupTriggeredBy", fields: [triggeredById], references: [id])
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([status])
 }
 

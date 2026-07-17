@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import {
   LayoutDashboard, Archive, Award, CalendarCheck, FileBarChart,
-  LogOut, ChevronRight, BookOpen,
+  LogOut, ChevronRight, BookOpen, Settings,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -25,6 +25,7 @@ const NAV_ITEMS: AdminNavItem[] = [
   { key: 'certificates', label: 'E-Certificate', icon: Award, view: { name: 'admin-certificates' } },
   { key: 'events', label: 'Event & Registrasi', icon: CalendarCheck, view: { name: 'admin-events' } },
   { key: 'reports', label: 'Laporan', icon: FileBarChart, view: { name: 'admin-reports' } },
+  { key: 'settings', label: 'Pengaturan', icon: Settings, view: { name: 'admin-settings' } },
 ]
 
 export function AdminShell({

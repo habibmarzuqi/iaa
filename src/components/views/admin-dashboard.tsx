@@ -132,12 +132,13 @@ export function AdminDashboard() {
         </motion.div>
 
         {/* Module quick access cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           {[
             { label: 'Arsip Digital', desc: 'Kelola dokumen organisasi', icon: Archive, color: 'from-blue-soft to-blue', view: { name: 'admin-archives' as const } },
             { label: 'E-Certificate', desc: 'Generate & verifikasi sertifikat', icon: Award, color: 'from-gold-soft to-gold', view: { name: 'admin-certificates' as const } },
             { label: 'Event & Registrasi', desc: 'Approval & check-in peserta', icon: CalendarCheck, color: 'from-emerald-400 to-emerald-600', view: { name: 'admin-events' as const } },
             { label: 'Laporan', desc: 'Export PDF & CSV', icon: FileBarChart, color: 'from-purple-400 to-purple-600', view: { name: 'admin-reports' as const } },
+            { label: 'Pengaturan', desc: 'Backup, OAuth, PWA', icon: Settings, color: 'from-slate-500 to-slate-700', view: { name: 'admin-settings' as const } },
           ].map((m) => (
             <motion.button
               key={m.label}

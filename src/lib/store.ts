@@ -43,6 +43,7 @@ export type View =
   | { name: 'admin-certificates' }
   | { name: 'admin-events' }
   | { name: 'admin-reports' }
+  | { name: 'admin-settings' }              // backup, restore, OAuth, notification settings
   | { name: 'verify-certificate' }           // public verification page
   | { name: 'chat' }                         // AI chatbot page
 
