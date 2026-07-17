@@ -21,6 +21,7 @@ import { AdminCertificatesView } from '@/components/views/admin-certificates-vie
 import { AdminEventsView } from '@/components/views/admin-events-view'
 import { AdminReportsView } from '@/components/views/admin-reports-view'
 import { AdminSettingsView } from '@/components/views/admin-settings-view'
+import { AdminCMSView } from '@/components/views/admin-cms-view'
 import { VerifyCertificateView } from '@/components/views/verify-certificate-view'
 import { ChatView } from '@/components/views/chat-view'
 
@@ -58,6 +59,7 @@ export default function Home() {
     case 'admin-events':
     case 'admin-reports':
     case 'admin-settings':
+    case 'admin-cms':
       if (!user || !['SUPER_ADMIN', 'ADMINISTRATOR', 'PENGURUS'].includes(user.role)) {
         return <LoginPage />
       }
@@ -67,6 +69,7 @@ export default function Home() {
         case 'admin-events': return <AdminEventsView />
         case 'admin-reports': return <AdminReportsView />
         case 'admin-settings': return <AdminSettingsView />
+        case 'admin-cms': return <AdminCMSView />
         default: return <AdminDashboard />
       }
 
