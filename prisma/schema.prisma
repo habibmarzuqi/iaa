@@ -1,0 +1,324 @@
+// IAA Digital - Ikatan Arsiparis ANRI
+// Prisma schema for organization management platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============ AUTH & USERS ============
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  name          String
+  role          Role     @default(ANGGOTA)
+  avatar        String?
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  member        Member?
+  articles      Article[]
+  events        Event[]      @relation("EventOrganizer")
+  certificates  Certificate[] // certificates issued BY this user
+  auditLogs     AuditLog[]
+
+  @@index([role])
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMINISTRATOR
+  PENGURUS
+  ANGGOTA
+}
+
+// ============ MEMBERS ============
+
+model Member {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberNumber    String   @unique
+  nip             String?
+  fullName        String
+  photo           String?
+  workUnit        String?
+  position        String?
+  arsiparisLevel  ArsiparisLevel?
+  education       String?
+  trainingHistory String?  // JSON string of training records
+  certificationHistory String? // JSON string
+  status          MemberStatus @default(AKTIF)
+  joinDate        DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  registrations   Registration[]
+  certificates    Certificate[]
+
+  @@index([status])
+  @@index([arsiparisLevel])
+}
+
+enum ArsiparisLevel {
+  PEMULA
+  MUDA
+  MADYA
+  UTAMA
+}
+
+enum MemberStatus {
+  AKTIF
+  TIDAK_AKTIF
+  PENSIUN
+  MENINGGAL
+}
+
+// ============ ARTICLES / BERITA ============
+
+model Article {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  excerpt       String
+  content       String
+  featuredImage String?
+  category      String   @default("Umum")
+  tags          String?  // comma-separated
+  isFeatured    Boolean  @default(false)
+  isPublished   Boolean  @default(true)
+  publishedAt   DateTime @default(now())
+  viewCount     Int      @default(0)
+  authorId      String
+  author        User     @relation(fields: [authorId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([isPublished, publishedAt])
+  @@index([category])
+}
+
+// ============ EVENTS ============
+
+model Event {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  description   String
+  eventType     EventType
+  coverImage    String?
+  location      String
+  startDate     DateTime
+  endDate       DateTime
+  quota         Int      @default(100)
+  registeredCount Int    @default(0)
+  isPublished   Boolean  @default(true)
+  isRegistrationOpen Boolean @default(true)
+  organizerId   String
+  organizer     User     @relation("EventOrganizer", fields: [organizerId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  registrations Registration[]
+  certificates  Certificate[]
+
+  @@index([startDate])
+  @@index([eventType])
+}
+
+enum EventType {
+  SEMINAR
+  WORKSHOP
+  WEBINAR
+  RAPAT
+  PELATIHAN
+  LOMBA
+}
+
+// ============ REGISTRATIONS ============
+
+model Registration {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  memberId    String
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  status      RegistrationStatus @default(PENDING)
+  checkedIn   Boolean  @default(false)
+  checkedInAt DateTime?
+  registeredAt DateTime @default(now())
+
+  @@unique([eventId, memberId])
+  @@index([status])
+}
+
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WAITING_LIST
+  CANCELLED
+}
+
+// ============ CERTIFICATES ============
+
+model Certificate {
+  id              String   @id @default(cuid())
+  certificateNumber String @unique
+  eventId         String?
+  event           Event?   @relation(fields: [eventId], references: [id])
+  memberId        String
+  member          Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  issuedById      String
+  issuedBy        User     @relation(fields: [issuedById], references: [id])
+  title           String
+  description     String?
+  template        String   @default("default")
+  issuedAt        DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@index([memberId])
+  @@index([eventId])
+}
+
+// ============ DIGITAL LIBRARY ============
+
+model LibraryItem {
+  id            String   @id @default(cuid())
+  title         String
+  slug          String   @unique
+  description   String
+  category      LibraryCategory
+  author        String?
+  publisher     String?
+  year          Int?
+  coverImage    String?
+  fileUrl       String?
+  fileSize      Int?
+  pages         Int?
+  tags          String?
+  downloadCount Int      @default(0)
+  viewCount     Int      @default(0)
+  isPublished   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([category])
+  @@index([isPublished])
+}
+
+enum LibraryCategory {
+  BUKU
+  EBOOK
+  JURNAL
+  PEDOMAN
+  REGULASI
+  SOP
+  TEMPLATE
+  PRESENTASI
+  MAJALAH
+  VIDEO
+  AUDIO
+}
+
+// ============ GALLERY ============
+
+model GalleryAlbum {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  coverImage  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  photos      GalleryPhoto[]
+}
+
+model GalleryPhoto {
+  id          String   @id @default(cuid())
+  albumId     String
+  album       GalleryAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  title       String?
+  url         String
+  createdAt   DateTime @default(now())
+
+  @@index([albumId])
+}
+
+// ============ ANNOUNCEMENTS ============
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  type        AnnouncementType @default(BANNER)
+  isPinned    Boolean  @default(false)
+  isPopup     Boolean  @default(false)
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum AnnouncementType {
+  BANNER
+  POPUP
+  RUNNING_TEXT
+  PINNED
+}
+
+// ============ ORGANIZATION STRUCTURE ============
+
+model OrganizationMember {
+  id          String   @id @default(cuid())
+  name        String
+  position    String
+  photo       String?
+  bio         String?
+  order       Int      @default(0)
+  category    String   @default("Pengurus Pusat") // e.g. "Ketua Umum", "Sekretaris", etc.
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category, isActive])
+}
+
+// ============ AUDIT LOG ============
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String
+  description String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ============ CONTACT MESSAGES ============
+
+model ContactMessage {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  phone       String?
+  subject     String
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([isRead])
+}
