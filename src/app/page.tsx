@@ -16,6 +16,12 @@ import { AboutView } from '@/components/views/about-view'
 import { OrganizationView } from '@/components/views/organization-view'
 import { ContactView } from '@/components/views/contact-view'
 import { FaqView } from '@/components/views/faq-view'
+import { AdminArchivesView } from '@/components/views/admin-archives-view'
+import { AdminCertificatesView } from '@/components/views/admin-certificates-view'
+import { AdminEventsView } from '@/components/views/admin-events-view'
+import { AdminReportsView } from '@/components/views/admin-reports-view'
+import { VerifyCertificateView } from '@/components/views/verify-certificate-view'
+import { ChatView } from '@/components/views/chat-view'
 
 export default function Home() {
   const { user, view, setUser, setView } = useApp()
@@ -38,7 +44,6 @@ export default function Home() {
 
     case 'member-dashboard':
       if (!user || user.role !== 'ANGGOTA') {
-        // redirect to login if not member
         if (user && (user.role === 'SUPER_ADMIN' || user.role === 'ADMINISTRATOR' || user.role === 'PENGURUS')) {
           return <AdminDashboard />
         }
@@ -47,10 +52,26 @@ export default function Home() {
       return <MemberDashboard />
 
     case 'admin-dashboard':
+    case 'admin-archives':
+    case 'admin-certificates':
+    case 'admin-events':
+    case 'admin-reports':
       if (!user || !['SUPER_ADMIN', 'ADMINISTRATOR', 'PENGURUS'].includes(user.role)) {
         return <LoginPage />
       }
-      return <AdminDashboard />
+      switch (view.name) {
+        case 'admin-archives': return <AdminArchivesView />
+        case 'admin-certificates': return <AdminCertificatesView />
+        case 'admin-events': return <AdminEventsView />
+        case 'admin-reports': return <AdminReportsView />
+        default: return <AdminDashboard />
+      }
+
+    case 'verify-certificate':
+      return <VerifyCertificateView />
+
+    case 'chat':
+      return <ChatView />
 
     case 'news-list':
       return <NewsListView />
@@ -78,3 +99,4 @@ export default function Home() {
       return <PublicSite />
   }
 }
+

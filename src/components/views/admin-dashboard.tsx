@@ -17,7 +17,7 @@ import {
   LayoutDashboard, Users, Award, CalendarCheck, BookOpen, FileText, Clock,
   TrendingUp, TrendingDown, ArrowUpRight, Activity, Loader2, LogOut,
   ChevronRight, UserPlus, FilePlus2, CalendarPlus, Award as AwardIcon,
-  Bell, Search, Download, Settings,
+  Bell, Search, Download, Settings, Archive, FileBarChart,
 } from 'lucide-react'
 import { formatDate, formatDateTime, timeAgo } from '@/lib/helpers'
 
@@ -124,12 +124,36 @@ export function AdminDashboard() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" className="bg-white/5 border-white/20 text-white hover:bg-white/10 hover:text-white">
+              <Button variant="outline" className="bg-white/5 border-white/20 text-white hover:bg-white/10 hover:text-white" onClick={() => setView({ name: 'admin-reports' })}>
                 <Download className="mr-2 h-4 w-4" /> Export Laporan
               </Button>
             </div>
           </div>
         </motion.div>
+
+        {/* Module quick access cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {[
+            { label: 'Arsip Digital', desc: 'Kelola dokumen organisasi', icon: Archive, color: 'from-blue-soft to-blue', view: { name: 'admin-archives' as const } },
+            { label: 'E-Certificate', desc: 'Generate & verifikasi sertifikat', icon: Award, color: 'from-gold-soft to-gold', view: { name: 'admin-certificates' as const } },
+            { label: 'Event & Registrasi', desc: 'Approval & check-in peserta', icon: CalendarCheck, color: 'from-emerald-400 to-emerald-600', view: { name: 'admin-events' as const } },
+            { label: 'Laporan', desc: 'Export PDF & CSV', icon: FileBarChart, color: 'from-purple-400 to-purple-600', view: { name: 'admin-reports' as const } },
+          ].map((m) => (
+            <motion.button
+              key={m.label}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={() => setView(m.view)}
+              className="group rounded-xl border border-border bg-card p-4 text-left hover:border-gold/40 hover:shadow-premium hover:-translate-y-0.5 transition-all"
+            >
+              <div className={`grid h-10 w-10 place-items-center rounded-lg bg-gradient-to-br ${m.color} text-white mb-2 group-hover:scale-110 transition-transform`}>
+                <m.icon className="h-5 w-5" />
+              </div>
+              <div className="font-semibold text-sm text-navy dark:text-white">{m.label}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">{m.desc}</div>
+            </motion.button>
+          ))}
+        </div>
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

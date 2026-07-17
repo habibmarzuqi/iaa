@@ -19,6 +19,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import {
   Menu, LogOut, User as UserIcon, LayoutDashboard,
   FileText, Calendar, BookOpen, Users, Info, HelpCircle, Mail, Image as ImageIcon,
+  Bot, ShieldCheck,
 } from 'lucide-react'
 
 const NAV = [
@@ -96,6 +97,27 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* AI Chatbot quick access */}
+          <button
+            onClick={() => setView({ name: 'chat' })}
+            className="hidden md:flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs font-medium text-gold hover:bg-gold/20 transition-colors"
+            title="Asisten AI Kearsipan"
+          >
+            <Bot className="h-3.5 w-3.5" />
+            <span className="hidden lg:inline">AI Chatbot</span>
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          </button>
+
+          {/* Verify cert quick access */}
+          <button
+            onClick={() => setView({ name: 'verify-certificate' })}
+            className="hidden md:flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground/70 hover:border-gold/40 hover:text-navy dark:hover:text-white transition-colors"
+            title="Verifikasi Sertifikat"
+          >
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span className="hidden lg:inline">Verifikasi</span>
+          </button>
+
           <ThemeToggle />
 
           {user ? (
@@ -184,6 +206,20 @@ export function Header() {
                     Masuk ke Akun
                   </Button>
                 )}
+                <div className="mt-4 pt-4 border-t border-border space-y-1">
+                  <button
+                    onClick={() => { setView({ name: 'chat' }); setMobileOpen(false) }}
+                    className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-accent transition-colors"
+                  >
+                    <Bot className="h-4 w-4 text-gold" /> AI Chatbot Kearsipan
+                  </button>
+                  <button
+                    onClick={() => { setView({ name: 'verify-certificate' }); setMobileOpen(false) }}
+                    className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-accent transition-colors"
+                  >
+                    <ShieldCheck className="h-4 w-4 text-gold" /> Verifikasi Sertifikat
+                  </button>
+                </div>
               </div>
             </SheetContent>
           </Sheet>

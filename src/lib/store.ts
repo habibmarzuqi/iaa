@@ -39,6 +39,12 @@ export type View =
   | { name: 'faq' }
   | { name: 'member-dashboard'; tab?: string }
   | { name: 'admin-dashboard'; tab?: string }
+  | { name: 'admin-archives' }
+  | { name: 'admin-certificates' }
+  | { name: 'admin-events' }
+  | { name: 'admin-reports' }
+  | { name: 'verify-certificate' }           // public verification page
+  | { name: 'chat' }                         // AI chatbot page
 
 interface AppState {
   user: SessionUser | null

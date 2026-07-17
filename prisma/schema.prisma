@@ -29,6 +29,10 @@ model User {
   events        Event[]      @relation("EventOrganizer")
   certificates  Certificate[] // certificates issued BY this user
   auditLogs     AuditLog[]
+  archivesUploaded      Archive[]      @relation("ArchiveUploader")
+  archiveVersions       ArchiveVersion[] @relation("ArchiveVersionUploader")
+  archiveAccesses       ArchiveAccess[]   @relation("ArchiveAccessUser")
+  chatConversations     ChatConversation[] @relation("ChatConversationUser")
 
   @@index([role])
 }
@@ -322,3 +326,120 @@ model ContactMessage {
 
   @@index([isRead])
 }
+
+// ============ ORGANIZATION ARCHIVE (Modul Arsip Digital Organisasi) ============
+
+model Archive {
+  id              String   @id @default(cuid())
+  archiveNumber   String   @unique             // e.g. "ARC-SK-2026-001"
+  title           String
+  description     String?
+  category        ArchiveCategory
+  documentDate    DateTime                     // tanggal dokumen asli
+  source          String?                      // asal dokumen / pihak pengirim
+  destination     String?                      // tujuan dokumen (untuk surat keluar)
+  classification  Classification @default(PUBLIK)
+  accessLevel     AccessLevel    @default(PUBLIK)
+  tags            String?                      // comma-separated
+  currentVersion  Int            @default(1)
+  isPinned        Boolean        @default(false)
+  uploadedById    String
+  uploadedBy      User           @relation("ArchiveUploader", fields: [uploadedById], references: [id])
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  versions        ArchiveVersion[]
+  accesses        ArchiveAccess[]
+
+  @@index([category])
+  @@index([classification])
+  @@index([accessLevel])
+  @@index([documentDate])
+}
+
+enum ArchiveCategory {
+  SURAT_MASUK
+  SURAT_KELUAR
+  DOKUMEN_RAPAT
+  SK
+  AD_ART
+  MOU
+  DOKUMEN_ORGANISASI
+  FOTO
+  VIDEO
+}
+
+enum Classification {
+  PUBLIK
+  INTERNAL
+  RAHASIA
+  SANGAT_RAHASIA
+}
+
+enum AccessLevel {
+  PUBLIK          // semua orang bisa lihat
+  ANGGOTA         // login sebagai anggota
+  PENGURUS        // pengurus+
+  ADMIN           // administrator+
+  SUPER_ADMIN     // super admin only
+}
+
+model ArchiveVersion {
+  id            String   @id @default(cuid())
+  archiveId     String
+  archive       Archive  @relation(fields: [archiveId], references: [id], onDelete: Cascade)
+  version       Int
+  fileUrl       String?
+  fileName      String?
+  fileSize      Int?
+  mimeType      String?
+  changeLog     String?
+  uploadedById  String
+  uploadedBy    User     @relation("ArchiveVersionUploader", fields: [uploadedById], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@unique([archiveId, version])
+  @@index([archiveId])
+}
+
+model ArchiveAccess {
+  id          String   @id @default(cuid())
+  archiveId   String
+  archive     Archive  @relation(fields: [archiveId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation("ArchiveAccessUser", fields: [userId], references: [id])
+  action      String   // VIEW, DOWNLOAD, UPLOAD, EDIT, DELETE
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([archiveId])
+  @@index([userId])
+}
+
+// ============ AI CHAT CONVERSATIONS ============
+
+model ChatConversation {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation("ChatConversationUser", fields: [userId], references: [id])
+  guestName   String?
+  title       String   @default("Percakapan Baru")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages    ChatMessage[]
+
+  @@index([userId])
+}
+
+model ChatMessage {
+  id            String   @id @default(cuid())
+  conversationId String
+  conversation  ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role          String   // "user" | "assistant"
+  content       String
+  createdAt     DateTime @default(now())
+
+  @@index([conversationId])
+}
+

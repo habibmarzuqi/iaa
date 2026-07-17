@@ -7,7 +7,7 @@ import { PublicLayout } from '@/components/layout/public-layout'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Calendar, MapPin, Clock, Users, Video, GraduationCap, Presentation, Users2, Trophy, UserCheck, Share2 } from 'lucide-react'
+import { ArrowLeft, Calendar, MapPin, Clock, Users, Video, GraduationCap, Presentation, Users2, Trophy, UserCheck, Share2, Loader2 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDate, formatDateTime } from '@/lib/helpers'
 import { toast } from 'sonner'
@@ -29,6 +29,7 @@ export function EventDetailView({ slug }: { slug: string }) {
   const { setView, user } = useApp()
   const [event, setEvent] = React.useState<EventDetail | null>(null)
   const [loading, setLoading] = React.useState(true)
+  const [registering, setRegistering] = React.useState(false)
 
   React.useEffect(() => {
     fetch(`/api/events?slug=${slug}`)
@@ -66,7 +67,7 @@ export function EventDetailView({ slug }: { slug: string }) {
   const remaining = event.quota - event.registeredCount
   const pct = Math.min(100, Math.round((event.registeredCount / event.quota) * 100))
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!user) {
       toast.info('Silakan login sebagai anggota untuk mendaftar kegiatan')
       setView({ name: 'login' })
@@ -76,7 +77,32 @@ export function EventDetailView({ slug }: { slug: string }) {
       toast.info('Hanya anggota yang dapat mendaftar kegiatan. Gunakan akun anggota.')
       return
     }
-    toast.success('Pendaftaran berhasil dikirim. Anda akan menerima email konfirmasi.')
+    setRegistering(true)
+    try {
+      const res = await fetch('/api/registrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: event.id }),
+      })
+      const d = await res.json()
+      if (!res.ok) {
+        if (d.registration) {
+          toast.info('Anda sudah terdaftar di kegiatan ini')
+        } else {
+          toast.error(d.error || 'Gagal mendaftar')
+        }
+        return
+      }
+      if (d.registration.status === 'WAITING_LIST') {
+        toast.success('Anda masuk waiting list. Kami akan menghubungi jika ada slot tersedia.')
+      } else {
+        toast.success('Pendaftaran berhasil! Menunggu approval pengurus.')
+      }
+    } catch {
+      toast.error('Terjadi kesalahan jaringan')
+    } finally {
+      setRegistering(false)
+    }
   }
 
   return (
@@ -158,8 +184,12 @@ export function EventDetailView({ slug }: { slug: string }) {
               </div>
 
               {event.isRegistrationOpen ? (
-                <Button onClick={handleRegister} className="w-full bg-navy-gradient" size="lg">
-                  <UserCheck className="mr-2 h-4 w-4" /> Daftar Sekarang
+                <Button onClick={handleRegister} disabled={registering} className="w-full bg-navy-gradient" size="lg">
+                  {registering ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mendaftarkan...</>
+                  ) : (
+                    <><UserCheck className="mr-2 h-4 w-4" /> Daftar Sekarang</>
+                  )}
                 </Button>
               ) : (
                 <Button disabled className="w-full" size="lg" variant="secondary">Pendaftaran Ditutup</Button>
