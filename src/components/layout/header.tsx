@@ -23,18 +23,33 @@ import { useTranslation } from '@/lib/i18n'
 import {
   Menu, LogOut, User as UserIcon, LayoutDashboard,
   FileText, Calendar, BookOpen, Users, Info, HelpCircle, Mail, Image as ImageIcon,
-  Bot, ShieldCheck, Search,
+  Bot, ShieldCheck, Search, ChevronDown,
 } from 'lucide-react'
 
-const NAV = [
+// Grouped nav structure: standalone items + dropdown groups
+type NavItem = { labelKey: string; view: any }
+type NavGroup = { labelKey: string; children: NavItem[] }
+type NavEntry = NavItem | NavGroup
+
+const NAV: NavEntry[] = [
   { labelKey: 'nav.beranda', view: { name: 'public' as const } },
-  { labelKey: 'nav.tentang', view: { name: 'about' as const } },
-  { labelKey: 'nav.pengurus', view: { name: 'organization' as const } },
-  { labelKey: 'nav.berita', view: { name: 'news-list' as const } },
-  { labelKey: 'nav.agenda', view: { name: 'event-list' as const } },
+  {
+    labelKey: 'nav.tentang',
+    children: [
+      { labelKey: 'nav.tentang', view: { name: 'about' as const } },
+      { labelKey: 'nav.pengurus', view: { name: 'organization' as const } },
+    ],
+  },
+  {
+    labelKey: 'nav.informasi',
+    children: [
+      { labelKey: 'nav.berita', view: { name: 'news-list' as const } },
+      { labelKey: 'nav.agenda', view: { name: 'event-list' as const } },
+      { labelKey: 'nav.galeri', view: { name: 'gallery' as const } },
+      { labelKey: 'nav.faq', view: { name: 'faq' as const } },
+    ],
+  },
   { labelKey: 'nav.library', view: { name: 'library' as const } },
-  { labelKey: 'nav.galeri', view: { name: 'gallery' as const } },
-  { labelKey: 'nav.faq', view: { name: 'faq' as const } },
   { labelKey: 'nav.kontak', view: { name: 'contact' as const } },
 ]
 
@@ -50,6 +65,10 @@ function iconFor(labelKey: string) {
     case 'nav.kontak': return Mail
     default: return FileText
   }
+}
+
+function isNavGroup(item: NavEntry): item is NavGroup {
+  return 'children' in item
 }
 
 export function Header() {
@@ -133,16 +152,50 @@ export function Header() {
           )}
         </button>
 
-        <nav className="hidden items-center gap-0.5 xl:flex">
-          {NAV.map((item) => (
-            <button
-              key={item.labelKey}
-              onClick={() => setView(item.view)}
-              className="px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:text-navy hover:bg-accent/40 rounded-md"
-            >
-              {t(item.labelKey)}
-            </button>
-          ))}
+        <nav className="hidden items-center gap-0.5 lg:flex">
+          {NAV.map((item) => {
+            if (isNavGroup(item)) {
+              // Dropdown group with hover
+              return (
+                <div key={item.labelKey} className="group relative">
+                  <button
+                    className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:text-navy hover:bg-accent/40 rounded-md"
+                  >
+                    {t(item.labelKey)}
+                    <ChevronDown className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all" />
+                  </button>
+                  {/* Hover dropdown */}
+                  <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute top-full left-0 pt-1 transition-all duration-200 z-50 min-w-[200px]">
+                    <div className="rounded-xl border border-border bg-card shadow-premium overflow-hidden p-1.5">
+                      {item.children.map((child) => {
+                        const Icon = iconFor(child.labelKey)
+                        return (
+                          <button
+                            key={child.labelKey}
+                            onClick={() => setView(child.view)}
+                            className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-sm text-foreground/70 hover:bg-accent hover:text-navy dark:hover:text-white transition-colors text-left"
+                          >
+                            <Icon className="h-4 w-4 text-gold flex-shrink-0" />
+                            {t(child.labelKey)}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+            // Standalone item
+            return (
+              <button
+                key={item.labelKey}
+                onClick={() => setView(item.view)}
+                className="px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:text-navy hover:bg-accent/40 rounded-md"
+              >
+                {t(item.labelKey)}
+              </button>
+            )
+          })}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -240,17 +293,39 @@ export function Header() {
 
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="xl:hidden">
+              <Button variant="ghost" size="icon" className="lg:hidden">
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">{t('nav.menu')}</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[360px]">
-              <div className="flex flex-col gap-2 mt-6">
-                <div className="px-2 mb-2">
+              <div className="flex flex-col gap-1 mt-6">
+                <div className="px-2 mb-3">
                   <IAALogo withText />
                 </div>
                 {NAV.map((item) => {
+                  if (isNavGroup(item)) {
+                    return (
+                      <div key={item.labelKey} className="space-y-1">
+                        <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          {t(item.labelKey)}
+                        </div>
+                        {item.children.map((child) => {
+                          const Icon = iconFor(child.labelKey)
+                          return (
+                            <button
+                              key={child.labelKey}
+                              onClick={() => { setView(child.view); setMobileOpen(false) }}
+                              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-navy transition-colors w-full"
+                            >
+                              <Icon className="h-4 w-4 text-gold" />
+                              {t(child.labelKey)}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )
+                  }
                   const Icon = iconFor(item.labelKey)
                   return (
                     <button
