@@ -45,6 +45,7 @@ export type View =
   | { name: 'admin-reports' }
   | { name: 'admin-settings' }              // backup, restore, OAuth, notification settings
   | { name: 'admin-cms' }                    // content management system for public website
+  | { name: 'admin-files' }                  // unified file manager
   | { name: 'verify-certificate' }           // public verification page
   | { name: 'chat' }                         // AI chatbot page
 

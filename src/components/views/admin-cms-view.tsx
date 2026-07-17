@@ -26,7 +26,7 @@ import {
   Plus, Search, Edit2, Trash2, Eye, EyeOff, Pin, Star, Clock,
   ExternalLink, Save, X, Loader2, Filter, ArrowRight,
   History, Search as SeoIcon, ImagePlus, UserCircle, AlertCircle,
-  Globe, FileSearch, Check,
+  Globe, FileSearch, Check, CheckSquare,
 } from 'lucide-react'
 import { useApp } from '@/lib/store'
 import { formatDate, formatDateTime, timeAgo } from '@/lib/helpers'
@@ -35,6 +35,7 @@ import { RichTextEditor } from '@/components/rich-text-editor'
 import { MediaLibraryDialog } from '@/components/media-library-dialog'
 import { RevisionHistoryDialog } from '@/components/revision-history-dialog'
 import { TagInput } from '@/components/tag-input'
+import { SortablePhotoGrid } from '@/components/sortable-photo-grid'
 
 type ContentType = 'articles' | 'events' | 'library' | 'gallery' | 'organization' | 'announcements'
 
@@ -1110,6 +1111,9 @@ function GalleryManager() {
   const [manageAlbum, setManageAlbum] = React.useState<any | null>(null) // album being managed (photos)
   const [photos, setPhotos] = React.useState<any[]>([])
   const [uploadingPhoto, setUploadingPhoto] = React.useState(false)
+  const [selectedPhotos, setSelectedPhotos] = React.useState<Set<string>>(new Set())
+  const [selectMode, setSelectMode] = React.useState(false)
+  const [bulkDeleting, setBulkDeleting] = React.useState(false)
 
   const load = React.useCallback(() => {
     setLoading(true)
@@ -1127,11 +1131,6 @@ function GalleryManager() {
       .then((d) => setPhotos(d.album?.photos ?? []))
       .catch(() => setPhotos([]))
   }, [])
-
-  const openManage = (album: any) => {
-    setManageAlbum(album)
-    loadPhotos(album.id)
-  }
 
   const handleUploadPhoto = async (files: FileList | null) => {
     if (!files || !manageAlbum) return
@@ -1167,6 +1166,70 @@ function GalleryManager() {
       setPhotos((ps) => ps.filter((p) => p.id !== photoId))
       load()
     } catch { toast.error('Gagal menghapus foto') }
+  }
+
+  const togglePhotoSelection = (photoId: string) => {
+    setSelectedPhotos((prev) => {
+      const next = new Set(prev)
+      if (next.has(photoId)) next.delete(photoId)
+      else next.add(photoId)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedPhotos.size === photos.length) {
+      setSelectedPhotos(new Set())
+    } else {
+      setSelectedPhotos(new Set(photos.map((p) => p.id)))
+    }
+  }
+
+  const bulkDeletePhotos = async () => {
+    if (selectedPhotos.size === 0) return
+    if (!confirm(`Hapus ${selectedPhotos.size} foto terpilih?`)) return
+    setBulkDeleting(true)
+    let success = 0
+    for (const photoId of selectedPhotos) {
+      try {
+        await fetch(`/api/gallery?action=photo&id=${photoId}`, { method: 'DELETE' })
+        success++
+      } catch {}
+    }
+    setBulkDeleting(false)
+    if (success > 0) {
+      toast.success(`${success} foto berhasil dihapus`)
+      setSelectedPhotos(new Set())
+      setSelectMode(false)
+      if (manageAlbum) loadPhotos(manageAlbum.id)
+      load()
+    }
+  }
+
+  const handleReorder = async (newPhotoIds: string[]) => {
+    // Optimistic update: reorder local photos
+    const newPhotos = newPhotoIds
+      .map((id) => photos.find((p) => p.id === id))
+      .filter(Boolean) as any[]
+    setPhotos(newPhotos)
+    try {
+      await fetch('/api/gallery/reorder', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoIds: newPhotoIds }),
+      })
+      toast.success('Urutan foto diperbarui')
+    } catch {
+      toast.error('Gagal mengurutkan foto')
+      if (manageAlbum) loadPhotos(manageAlbum.id) // rollback
+    }
+  }
+
+  const openManage = (album: any) => {
+    setManageAlbum(album)
+    setSelectedPhotos(new Set())
+    setSelectMode(false)
+    loadPhotos(album.id)
   }
 
   const remove = async (a: any) => {
@@ -1281,7 +1344,38 @@ function GalleryManager() {
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Foto di Album ({photos.length})
+                      {selectMode && selectedPhotos.size > 0 && (
+                        <span className="ml-2 text-gold">{selectedPhotos.size} terpilih</span>
+                      )}
                     </h4>
+                    {photos.length > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        {selectMode ? (
+                          <>
+                            <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={toggleSelectAll}>
+                              {selectedPhotos.size === photos.length ? 'Batal Pilih' : 'Pilih Semua'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-[10px] border-red-400/40 text-red-600 hover:bg-red-50"
+                              onClick={bulkDeletePhotos}
+                              disabled={selectedPhotos.size === 0 || bulkDeleting}
+                            >
+                              {bulkDeleting ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Trash2 className="mr-1 h-3 w-3" />}
+                              Hapus ({selectedPhotos.size})
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => { setSelectMode(false); setSelectedPhotos(new Set()) }}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => setSelectMode(true)}>
+                            <CheckSquare className="mr-1 h-3 w-3" /> Pilih
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
                   {photos.length === 0 ? (
                     <div className="text-center py-8">
@@ -1289,42 +1383,14 @@ function GalleryManager() {
                       <p className="text-xs text-muted-foreground">Belum ada foto. Upload foto pertama Anda.</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-2">
-                      {photos.map((p, i) => (
-                        <motion.div
-                          key={p.id}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: i * 0.03 }}
-                          className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted"
-                        >
-                          { }
-                          <img src={p.url} alt={p.title || 'Foto'} className="h-full w-full object-cover" />
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center">
-                            <div className="flex gap-1">
-                              <a href={p.url} target="_blank" rel="noopener noreferrer">
-                                <Button size="sm" variant="secondary" className="h-7 w-7 p-0">
-                                  <Eye className="h-3.5 w-3.5" />
-                                </Button>
-                              </a>
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                className="h-7 w-7 p-0 text-red-600 hover:bg-red-50"
-                                onClick={() => deletePhoto(p.id)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                          {p.title && (
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1">
-                              <p className="text-[9px] text-white truncate">{p.title}</p>
-                            </div>
-                          )}
-                        </motion.div>
-                      ))}
-                    </div>
+                    <SortablePhotoGrid
+                      photos={photos}
+                      selectMode={selectMode}
+                      selectedPhotos={selectedPhotos}
+                      onToggleSelect={togglePhotoSelection}
+                      onDelete={deletePhoto}
+                      onReorder={handleReorder}
+                    />
                   )}
                 </div>
               </div>

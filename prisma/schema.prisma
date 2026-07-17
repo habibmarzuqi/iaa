@@ -315,9 +315,11 @@ model GalleryPhoto {
   album       GalleryAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
   title       String?
   url         String
+  order       Int      @default(0)
   createdAt   DateTime @default(now())
 
   @@index([albumId])
+  @@index([albumId, order])
 }
 
 // ============ ANNOUNCEMENTS ============

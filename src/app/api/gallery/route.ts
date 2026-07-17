@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     }
     const albums = await db.galleryAlbum.findMany({
       include: {
-        photos: { orderBy: { createdAt: 'desc' } },
+        photos: { orderBy: [{ order: 'asc' }, { createdAt: 'desc' }] },
         _count: { select: { photos: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     const album = await db.galleryAlbum.findUnique({
       where: { id },
       include: {
-        photos: { orderBy: { createdAt: 'desc' } },
+        photos: { orderBy: [{ order: 'asc' }, { createdAt: 'desc' }] },
       },
     })
     if (!album) return NextResponse.json({ error: 'Album tidak ditemukan' }, { status: 404 })

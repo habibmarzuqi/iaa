@@ -87,6 +87,10 @@ export async function GET(req: NextRequest) {
     where,
     include: {
       uploadedBy: { select: { name: true } },
+      versions: {
+        select: { id: true, version: true, fileName: true, fileUrl: true, fileSize: true, mimeType: true, createdAt: true },
+        orderBy: { version: 'desc' },
+      },
       _count: { select: { versions: true, accesses: true } },
     },
     orderBy: [{ isPinned: 'desc' }, { documentDate: 'desc' }],

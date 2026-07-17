@@ -79,9 +79,18 @@ export async function POST(req: NextRequest) {
     const url = `/uploads/gallery/${storedName}`
 
     // Generate thumbnail variant (200x200 cover webp) for non-SVG
+    // + Apply watermark to original image
     let thumbUrl: string | null = null
     if (file.type !== 'image/svg+xml') {
       try {
+        // Apply watermark to original image (bottom-right corner)
+        const watermarkedBuffer = await applyWatermark(buffer, file.type)
+        if (watermarkedBuffer) {
+          // Overwrite original with watermarked version
+          await writeFile(filePath, watermarkedBuffer)
+        }
+
+        // Generate thumbnail (200x200 cover webp)
         const thumbName = `${baseName}-thumb.webp`
         await sharp(buffer)
           .resize(200, 200, { fit: 'cover', position: 'center' })
@@ -89,7 +98,7 @@ export async function POST(req: NextRequest) {
           .toFile(path.join(UPLOAD_DIR, thumbName))
         thumbUrl = `/uploads/gallery/${thumbName}`
       } catch (e) {
-        console.error('Thumbnail generation error:', e)
+        console.error('Image processing error:', e)
       }
     }
 
@@ -121,3 +130,42 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Gagal mengunggah foto: ' + e.message }, { status: 500 })
   }
 }
+
+// Apply "IAA Digital" watermark to image (bottom-right semi-transparent text)
+async function applyWatermark(buffer: Buffer, mimeType: string): Promise<Buffer | null> {
+  try {
+    const metadata = await sharp(buffer).metadata()
+    const width = metadata.width || 800
+    const height = metadata.height || 600
+
+    // Create watermark SVG overlay (scaled relative to image size)
+    const fontSize = Math.max(16, Math.min(width, height) / 20)
+    const padding = fontSize * 0.5
+    const watermarkSvg = Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+        <defs>
+          <linearGradient id="wm-bg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="rgba(0,0,0,0)"/>
+            <stop offset="100%" stop-color="rgba(0,0,0,0.5)"/>
+          </linearGradient>
+        </defs>
+        <rect x="${width - fontSize * 12 - padding * 2}" y="${height - fontSize * 3 - padding * 2}" width="${fontSize * 12 + padding * 2}" height="${fontSize * 3 + padding * 2}" fill="url(#wm-bg)" rx="4"/>
+        <text x="${width - padding}" y="${height - fontSize - padding}" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold" fill="rgba(255,255,255,0.9)" text-anchor="end">IAA Digital</text>
+        <text x="${width - padding}" y="${height - padding}" font-family="Arial, sans-serif" font-size="${fontSize * 0.6}" fill="rgba(255,255,255,0.6)" text-anchor="end">Ikatan Arsiparis ANRI</text>
+      </svg>
+    `)
+
+    // Composite watermark onto original image
+    const outputFormat = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpeg'
+    const result = await sharp(buffer)
+      .composite([{ input: watermarkSvg, gravity: 'southeast' }])
+      [outputFormat]({ quality: 90 })
+      .toBuffer()
+
+    return result
+  } catch (e) {
+    console.error('Watermark error:', e)
+    return null
+  }
+}
+

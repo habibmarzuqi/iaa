@@ -262,6 +262,7 @@ const ID: Dict = {
   // ===== ADMIN SHELL =====
   'admin.dashboard': 'Dashboard',
   'admin.cms': 'Website Publik',
+  'admin.files': 'File Manager',
   'admin.archives': 'Arsip Digital',
   'admin.certificates': 'E-Certificate',
   'admin.events': 'Event & Registrasi',
@@ -579,6 +580,7 @@ const EN: Dict = {
   // ===== ADMIN SHELL =====
   'admin.dashboard': 'Dashboard',
   'admin.cms': 'Public Website',
+  'admin.files': 'File Manager',
   'admin.archives': 'Digital Archives',
   'admin.certificates': 'E-Certificate',
   'admin.events': 'Events & Registration',
