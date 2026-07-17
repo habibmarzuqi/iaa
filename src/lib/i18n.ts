@@ -267,7 +267,8 @@ const ID: Dict = {
   'admin.certificates': 'E-Certificate',
   'admin.events': 'Event & Registrasi',
   'admin.reports': 'Laporan',
-  'admin.settings': 'Pengaturan',
+  'admin.settings': 'Pengaturan Sistem',
+  'admin.siteSettings': 'Pengaturan Situs',
   'admin.viewWebsite': 'Lihat Website',
   'admin.logout': 'Keluar',
 
@@ -585,7 +586,8 @@ const EN: Dict = {
   'admin.certificates': 'E-Certificate',
   'admin.events': 'Events & Registration',
   'admin.reports': 'Reports',
-  'admin.settings': 'Settings',
+  'admin.settings': 'System Settings',
+  'admin.siteSettings': 'Site Settings',
   'admin.viewWebsite': 'View Website',
   'admin.logout': 'Sign Out',
 

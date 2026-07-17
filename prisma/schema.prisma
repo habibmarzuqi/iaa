@@ -38,6 +38,7 @@ model User {
   backupsTriggered      BackupHistory[]  @relation("BackupTriggeredBy")
   articleRevisions      ArticleRevision[] @relation("ArticleRevisionEditor")
   mediaAssetsUploaded   MediaAsset[]     @relation("MediaAssetUploader")
+  siteSettingsUpdated   SiteSetting[]    @relation("SiteSettingUpdater")
 
   @@index([role])
 }
@@ -574,4 +575,18 @@ model BackupHistory {
   @@index([createdAt])
   @@index([status])
 }
+
+// ============ SITE SETTINGS (Phase: Public Website Config) ============
+
+model SiteSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String?
+  type        String   @default("text")  // text | textarea | image | color | boolean
+  category    String   @default("general") // general | branding | contact | social | seo
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+  updatedBy   User?    @relation("SiteSettingUpdater", fields: [updatedById], references: [id])
+}
+
 
