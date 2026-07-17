@@ -31,6 +31,7 @@ import { toast } from 'sonner'
 import { RichTextEditor } from '@/components/rich-text-editor'
 import { MediaLibraryDialog } from '@/components/media-library-dialog'
 import { RevisionHistoryDialog } from '@/components/revision-history-dialog'
+import { TagInput } from '@/components/tag-input'
 
 type ContentType = 'articles' | 'events' | 'library' | 'gallery' | 'organization' | 'announcements'
 
@@ -151,6 +152,25 @@ function ArticlesManager() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Cari berita..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/cron/publish-scheduled?token=iaa-cron-secret-dev')
+                const d = await res.json()
+                if (d.ok) {
+                  toast.success(d.message || `Cron dijalankan: ${d.published} artikel di-publish`)
+                  load()
+                } else {
+                  toast.error(d.error || 'Gagal menjalankan cron')
+                }
+              } catch { toast.error('Gagal') }
+            }}
+            title="Trigger manual auto-publish untuk artikel SCHEDULED yang sudah lewat jadwalnya"
+          >
+            <Clock className="mr-2 h-3.5 w-3.5" /> Run Cron
+          </Button>
           <Button onClick={openCreate} className="bg-navy-gradient">
             <Plus className="mr-2 h-4 w-4" /> Tulis Berita
           </Button>
@@ -242,10 +262,15 @@ function ArticleDialog({ open, onOpenChange, article, onSaved }: {
   const [mediaPickerOpen, setMediaPickerOpen] = React.useState<null | 'featured' | 'og'>(null)
   const [revisionOpen, setRevisionOpen] = React.useState(false)
   const [authors, setAuthors] = React.useState<{ id: string; name: string; email: string; role: string }[]>([])
+  const [tagSuggestions, setTagSuggestions] = React.useState<string[]>([])
 
-  // Load authors (pengurus + admin users)
+  // Load authors (pengurus + admin users) + tag suggestions
   React.useEffect(() => {
     if (open) {
+      fetch('/api/tags')
+        .then((r) => r.json())
+        .then((d) => setTagSuggestions(d.tags ?? []))
+        .catch(() => {})
       fetch('/api/members-list')
         .then((r) => r.json())
         .then((d) => {
@@ -389,8 +414,13 @@ function ArticleDialog({ open, onOpenChange, article, onSaved }: {
                     <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Umum, Kegiatan, Pelatihan..." />
                   </div>
                   <div className="space-y-2">
-                    <Label>Tags (pisahkan koma)</Label>
-                    <Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="kearsipan, webinar, 2026" />
+                    <Label>Tags</Label>
+                    <TagInput
+                      value={form.tags}
+                      onChange={(v) => setForm({ ...form, tags: v })}
+                      suggestions={tagSuggestions}
+                      placeholder="kearsipan, webinar, 2026"
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -839,7 +869,7 @@ function EventDialog({ open, onOpenChange, event, onSaved }: {
           </div>
           <div className="space-y-2">
             <Label>Deskripsi</Label>
-            <Textarea rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Deskripsi kegiatan..." />
+            <RichTextEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Deskripsi kegiatan... (Markdown supported)" />
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <label className="flex items-center gap-2 cursor-pointer">
@@ -1044,7 +1074,7 @@ function LibraryDialog({ open, onOpenChange, item, onSaved }: {
           </div>
           <div className="space-y-2">
             <Label>Deskripsi</Label>
-            <Textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <RichTextEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Deskripsi koleksi... (Markdown supported)" />
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Jumlah Halaman" value={form.pages} onChange={(v) => setForm({ ...form, pages: v })} type="number" />

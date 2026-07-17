@@ -10,6 +10,7 @@ import { db } from '@/lib/db'
 import { writeFile, mkdir, unlink } from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
+import sharp from 'sharp'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -97,8 +98,53 @@ export async function POST(req: NextRequest) {
     // Get image dimensions if applicable
     let width: number | null = null
     let height: number | null = null
-    if (file.type.startsWith('image/')) {
-      // Simple dimension extraction for SVG/JPEG/PNG headers
+    let thumbUrl: string | null = null
+    let mediumUrl: string | null = null
+    let largeUrl: string | null = null
+
+    if (file.type.startsWith('image/') && file.type !== 'image/svg+xml') {
+      try {
+        const metadata = await sharp(buffer).metadata()
+        width = metadata.width ?? null
+        height = metadata.height ?? null
+
+        // Generate optimized variants: thumb (200x200), medium (800w), large (1200w)
+        const baseName = path.basename(storedName, ext)
+        const webpExt = '.webp'
+
+        // Thumbnail (200x200 cover)
+        const thumbName = `${baseName}-thumb${webpExt}`
+        await sharp(buffer)
+          .resize(200, 200, { fit: 'cover', position: 'center' })
+          .webp({ quality: 80 })
+          .toFile(path.join(UPLOAD_DIR, thumbName))
+        thumbUrl = `/uploads/${thumbName}`
+
+        // Medium (max 800px wide)
+        const mediumName = `${baseName}-medium${webpExt}`
+        await sharp(buffer)
+          .resize(800, null, { withoutEnlargement: true })
+          .webp({ quality: 82 })
+          .toFile(path.join(UPLOAD_DIR, mediumName))
+        mediumUrl = `/uploads/${mediumName}`
+
+        // Large (max 1200px wide)
+        const largeName = `${baseName}-large${webpExt}`
+        await sharp(buffer)
+          .resize(1200, null, { withoutEnlargement: true })
+          .webp({ quality: 85 })
+          .toFile(path.join(UPLOAD_DIR, largeName))
+        largeUrl = `/uploads/${largeName}`
+      } catch (e) {
+        console.error('Sharp processing error:', e)
+        // Fallback to manual dimension extraction
+        try {
+          const dims = getImageDimensions(buffer, file.type)
+          if (dims) { width = dims.width; height = dims.height }
+        } catch {}
+      }
+    } else if (file.type.startsWith('image/')) {
+      // SVG: no sharp processing, just get dimensions
       try {
         const dims = getImageDimensions(buffer, file.type)
         if (dims) { width = dims.width; height = dims.height }
@@ -118,13 +164,16 @@ export async function POST(req: NextRequest) {
         height,
         alt: alt || null,
         caption: caption || null,
+        thumbUrl,
+        mediumUrl,
+        largeUrl,
         uploadedById: user.id,
       },
       include: { uploadedBy: { select: { name: true } } },
     })
 
     await db.auditLog.create({
-      data: { userId: user.id, action: 'MEDIA_UPLOAD', description: `Uploaded ${file.name} (${(file.size / 1024).toFixed(1)} KB)` },
+      data: { userId: user.id, action: 'MEDIA_UPLOAD', description: `Uploaded ${file.name} (${(file.size / 1024).toFixed(1)} KB)${thumbUrl ? ' + variants' : ''}` },
     })
 
     return NextResponse.json({ asset }, { status: 201 })

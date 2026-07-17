@@ -69,13 +69,58 @@ export function RevisionHistoryDialog({
     }
   }
 
-  // Simple diff: highlight lines that differ
-  const diff = React.useMemo(() => {
-    if (!selectedRev) return null
-    const oldLines = (compareWith?.content || currentContent || '').split('\n')
-    const newLines = selectedRev.content.split('\n')
-    return { oldLines, newLines }
-  }, [selectedRev, compareWith, currentContent])
+  // Get previous revision (for diff comparison)
+  const prevRev = React.useMemo(() => {
+    if (!selectedRev || revisions.length === 0) return null
+    const idx = revisions.findIndex((r) => r.id === selectedRev.id)
+    // revisions are sorted desc, so prev (older) is at idx+1
+    return idx >= 0 && idx < revisions.length - 1 ? revisions[idx + 1] : null
+  }, [selectedRev, revisions])
+
+  // LCS-based line diff: returns array of { type: 'added'|'removed'|'unchanged', text }
+  const diffLines = React.useMemo<{ type: 'added' | 'removed' | 'unchanged'; text: string }[]>(() => {
+    if (!selectedRev) return []
+    const oldText = prevRev?.content || ''
+    const newText = selectedRev.content
+    const oldLines = oldText.split('\n')
+    const newLines = newText.split('\n')
+
+    // If no previous version, show all as "unchanged" (initial content)
+    if (!prevRev) {
+      return newLines.map((text) => ({ type: 'unchanged' as const, text }))
+    }
+
+    // Build LCS table
+    const m = oldLines.length
+    const n = newLines.length
+    const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0))
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (oldLines[i - 1] === newLines[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1] + 1
+        } else {
+          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1])
+        }
+      }
+    }
+
+    // Backtrack to build diff
+    const result: { type: 'added' | 'removed' | 'unchanged'; text: string }[] = []
+    let i = m, j = n
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+        result.unshift({ type: 'unchanged', text: oldLines[i - 1] })
+        i--; j--
+      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+        result.unshift({ type: 'added', text: newLines[j - 1] })
+        j--
+      } else if (i > 0) {
+        result.unshift({ type: 'removed', text: oldLines[i - 1] })
+        i--
+      }
+    }
+    return result
+  }, [selectedRev, prevRev])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -154,12 +199,37 @@ export function RevisionHistoryDialog({
                     )}
                   </div>
 
-                  {/* Content preview */}
+                  {/* Diff viewer */}
                   <div className="flex-1 overflow-y-auto scrollbar-premium rounded-lg border border-border bg-card p-4">
-                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Konten Versi {selectedRev.version}</div>
-                    <div className="prose prose-sm dark:prose-invert max-w-none">
-                      {selectedRev.content.split('\n').map((line, i) => (
-                        <p key={i} className="text-foreground/80 leading-relaxed mb-2 whitespace-pre-wrap">{line || '\u00A0'}</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {prevRev ? `Perubahan dari Versi ${prevRev.version} → Versi ${selectedRev.version}` : `Konten Versi ${selectedRev.version} (versi awal)`}
+                      </div>
+                      {prevRev && (
+                        <div className="flex items-center gap-3 text-[10px]">
+                          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-emerald-400" /> added</span>
+                          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-red-400" /> removed</span>
+                          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-muted" /> unchanged</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="font-mono text-xs space-y-0.5">
+                      {diffLines.map((dl, i) => (
+                        <div
+                          key={i}
+                          className={`flex gap-2 px-2 py-0.5 rounded-sm whitespace-pre-wrap break-words ${
+                            dl.type === 'added'
+                              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200'
+                              : dl.type === 'removed'
+                              ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 line-through'
+                              : 'text-muted-foreground'
+                          }`}
+                        >
+                          <span className="flex-shrink-0 opacity-60 w-4 text-right select-none">
+                            {dl.type === 'added' ? '+' : dl.type === 'removed' ? '-' : ' '}
+                          </span>
+                          <span className="flex-1">{dl.text || '\u00A0'}</span>
+                        </div>
                       ))}
                     </div>
                   </div>

@@ -161,6 +161,10 @@ model MediaAsset {
   height      Int?
   alt         String?  // alt text
   caption     String?
+  // Image optimization variants (Phase 4 enrichment)
+  thumbUrl    String?  // 200x200 thumbnail
+  mediumUrl   String?  // 800px width medium
+  largeUrl    String?  // 1200px width large
   uploadedById String
   uploadedBy  User     @relation("MediaAssetUploader", fields: [uploadedById], references: [id])
   createdAt   DateTime @default(now())

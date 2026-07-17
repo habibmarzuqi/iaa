@@ -21,7 +21,7 @@ import {
 import {
   Archive as ArchiveIcon, Search, Plus, FileText, Calendar, Building2,
   User, Lock, Eye, Download, Edit, Pin, History, Shield, FileCheck,
-  ArrowRight, Filter,
+  ArrowRight, Filter, CheckCircle2, Loader2,
 } from 'lucide-react'
 import { formatDate, formatDateTime, timeAgo } from '@/lib/helpers'
 import { toast } from 'sonner'
@@ -373,8 +373,10 @@ function CreateArchiveDialog({ open, onOpenChange, onCreated }: {
     title: '', description: '', category: 'SK', documentDate: new Date().toISOString().slice(0, 10),
     source: '', destination: '', classification: 'PUBLIK', accessLevel: 'PUBLIK', tags: '',
     fileName: '', changeLog: '',
+    fileUrl: '', fileSize: 0, mimeType: '',
   })
   const [saving, setSaving] = React.useState(false)
+  const [uploadingFile, setUploadingFile] = React.useState(false)
 
   const submit = async () => {
     if (!form.title || !form.category) {
@@ -481,10 +483,53 @@ function CreateArchiveDialog({ open, onOpenChange, onCreated }: {
           </div>
 
           <div className="rounded-lg bg-muted/50 p-3 space-y-3 border border-border">
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Versi Awal Dokumen</div>
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+              <FileText className="h-3.5 w-3.5 text-gold" /> Versi Awal Dokumen
+            </div>
             <div className="space-y-2">
-              <Label htmlFor="fileName">Nama File</Label>
-              <Input id="fileName" value={form.fileName} onChange={(e) => setForm({ ...form, fileName: e.target.value })} placeholder="document.pdf" />
+              <Label>Upload File Dokumen</Label>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.svg,.mp4,.txt,.csv,.zip"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0]
+                  if (!f) return
+                  setUploadingFile(true)
+                  try {
+                    const fd = new FormData()
+                    fd.append('file', f)
+                    const res = await fetch('/api/archives/upload', { method: 'POST', body: fd })
+                    const d = await res.json()
+                    if (!res.ok) { toast.error(d.error || 'Gagal upload'); return }
+                    setForm({
+                      ...form,
+                      fileName: d.fileName,
+                      fileUrl: d.url,
+                      fileSize: d.fileSize,
+                      mimeType: d.mimeType,
+                    })
+                    toast.success('File terunggah')
+                  } catch { toast.error('Gagal upload file') } finally { setUploadingFile(false) }
+                }}
+                className="block w-full text-xs file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-navy-gradient file:text-white file:font-medium file:cursor-pointer hover:file:opacity-90"
+              />
+              {uploadingFile && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Mengunggah...
+                </div>
+              )}
+              {form.fileUrl && (
+                <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-2 flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-emerald-700 dark:text-emerald-300 truncate">{form.fileName}</div>
+                    <div className="text-[10px] text-emerald-600 dark:text-emerald-400">{form.fileSize ? `${(form.fileSize / 1024).toFixed(1)} KB` : ''} · {form.mimeType}</div>
+                  </div>
+                  <a href={form.fileUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:text-emerald-700">
+                    <Eye className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="changeLog">Catatan Versi</Label>
