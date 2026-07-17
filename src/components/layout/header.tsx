@@ -18,42 +18,58 @@ import {
 import { ThemeToggle } from '@/components/theme-toggle'
 import { NotificationBell } from '@/components/notification-bell'
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { SearchDialog } from '@/components/search-dialog'
+import { useTranslation } from '@/lib/i18n'
 import {
   Menu, LogOut, User as UserIcon, LayoutDashboard,
   FileText, Calendar, BookOpen, Users, Info, HelpCircle, Mail, Image as ImageIcon,
-  Bot, ShieldCheck,
+  Bot, ShieldCheck, Search,
 } from 'lucide-react'
 
 const NAV = [
-  { label: 'Beranda', view: { name: 'public' as const } },
-  { label: 'Tentang', view: { name: 'about' as const } },
-  { label: 'Pengurus', view: { name: 'organization' as const } },
-  { label: 'Berita', view: { name: 'news-list' as const } },
-  { label: 'Agenda', view: { name: 'event-list' as const } },
-  { label: 'Digital Library', view: { name: 'library' as const } },
-  { label: 'Galeri', view: { name: 'gallery' as const } },
-  { label: 'FAQ', view: { name: 'faq' as const } },
-  { label: 'Kontak', view: { name: 'contact' as const } },
+  { labelKey: 'nav.beranda', view: { name: 'public' as const } },
+  { labelKey: 'nav.tentang', view: { name: 'about' as const } },
+  { labelKey: 'nav.pengurus', view: { name: 'organization' as const } },
+  { labelKey: 'nav.berita', view: { name: 'news-list' as const } },
+  { labelKey: 'nav.agenda', view: { name: 'event-list' as const } },
+  { labelKey: 'nav.library', view: { name: 'library' as const } },
+  { labelKey: 'nav.galeri', view: { name: 'gallery' as const } },
+  { labelKey: 'nav.faq', view: { name: 'faq' as const } },
+  { labelKey: 'nav.kontak', view: { name: 'contact' as const } },
 ]
 
-function iconFor(label: string) {
-  switch (label) {
-    case 'Tentang': return Info
-    case 'Pengurus': return Users
-    case 'Berita': return FileText
-    case 'Agenda': return Calendar
-    case 'Digital Library': return BookOpen
-    case 'Galeri': return ImageIcon
-    case 'FAQ': return HelpCircle
-    case 'Kontak': return Mail
+function iconFor(labelKey: string) {
+  switch (labelKey) {
+    case 'nav.tentang': return Info
+    case 'nav.pengurus': return Users
+    case 'nav.berita': return FileText
+    case 'nav.agenda': return Calendar
+    case 'nav.library': return BookOpen
+    case 'nav.galeri': return ImageIcon
+    case 'nav.faq': return HelpCircle
+    case 'nav.kontak': return Mail
     default: return FileText
   }
 }
 
 export function Header() {
   const { user, setView, logout } = useApp()
+  const { t } = useTranslation()
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [scrolled, setScrolled] = React.useState(false)
+  const [searchOpen, setSearchOpen] = React.useState(false)
+
+  // Keyboard shortcut: Cmd/Ctrl+K
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12)
@@ -89,16 +105,29 @@ export function Header() {
         <nav className="hidden items-center gap-0.5 xl:flex">
           {NAV.map((item) => (
             <button
-              key={item.label}
+              key={item.labelKey}
               onClick={() => setView(item.view)}
               className="px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:text-navy hover:bg-accent/40 rounded-md"
             >
-              {item.label}
+              {t(item.labelKey)}
             </button>
           ))}
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Search button */}
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="hidden md:flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:border-gold/40 hover:text-navy dark:hover:text-white transition-colors"
+            title="Pencarian global (Ctrl+K)"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span className="hidden lg:inline">{t('nav.search')}</span>
+            <kbd className="hidden lg:inline-flex h-4 items-center gap-0.5 rounded border border-border bg-muted px-1 text-[9px] font-mono">
+              ⌘K
+            </kbd>
+          </button>
+
           {/* AI Chatbot quick access */}
           <button
             onClick={() => setView({ name: 'chat' })}
@@ -106,7 +135,7 @@ export function Header() {
             title="Asisten AI Kearsipan"
           >
             <Bot className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">AI Chatbot</span>
+            <span className="hidden lg:inline">{t('nav.chatbot')}</span>
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
           </button>
 
@@ -117,7 +146,7 @@ export function Header() {
             title="Verifikasi Sertifikat"
           >
             <ShieldCheck className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">Verifikasi</span>
+            <span className="hidden lg:inline">{t('nav.verify')}</span>
           </button>
 
           <LanguageSwitcher />
@@ -151,20 +180,20 @@ export function Header() {
                 <DropdownMenuSeparator />
                 {user.role === 'ANGGOTA' && (
                   <DropdownMenuItem onClick={() => setView({ name: 'member-dashboard' })}>
-                    <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard Anggota
+                    <LayoutDashboard className="mr-2 h-4 w-4" /> {t('nav.dashboardAnggota')}
                   </DropdownMenuItem>
                 )}
                 {hasPengurusAccess(user.role) && (
                   <DropdownMenuItem onClick={() => setView({ name: 'admin-dashboard' })}>
-                    <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard Admin
+                    <LayoutDashboard className="mr-2 h-4 w-4" /> {t('nav.dashboardAdmin')}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onClick={() => setView({ name: 'public' })}>
-                  <UserIcon className="mr-2 h-4 w-4" /> Lihat Website Publik
+                  <UserIcon className="mr-2 h-4 w-4" /> {t('nav.lihatWebsite')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
-                  <LogOut className="mr-2 h-4 w-4" /> Keluar
+                  <LogOut className="mr-2 h-4 w-4" /> {t('nav.keluar')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -174,7 +203,7 @@ export function Header() {
               size="sm"
               className="hidden sm:inline-flex bg-navy-gradient hover:opacity-90"
             >
-              Masuk
+              {t('nav.masuk')}
             </Button>
           )}
 
@@ -182,7 +211,7 @@ export function Header() {
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="xl:hidden">
                 <Menu className="h-5 w-5" />
-                <span className="sr-only">Menu</span>
+                <span className="sr-only">{t('nav.menu')}</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[360px]">
@@ -191,15 +220,15 @@ export function Header() {
                   <IAALogo withText />
                 </div>
                 {NAV.map((item) => {
-                  const Icon = iconFor(item.label)
+                  const Icon = iconFor(item.labelKey)
                   return (
                     <button
-                      key={item.label}
+                      key={item.labelKey}
                       onClick={() => { setView(item.view); setMobileOpen(false) }}
                       className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-navy transition-colors"
                     >
                       <Icon className="h-4 w-4 text-gold" />
-                      {item.label}
+                      {t(item.labelKey)}
                     </button>
                   )
                 })}
@@ -208,7 +237,7 @@ export function Header() {
                     onClick={() => { setView({ name: 'login' }); setMobileOpen(false) }}
                     className="mt-4 bg-navy-gradient"
                   >
-                    Masuk ke Akun
+                    {t('nav.masuk')} ke Akun
                   </Button>
                 )}
                 <div className="mt-4 pt-4 border-t border-border space-y-1">
@@ -216,13 +245,13 @@ export function Header() {
                     onClick={() => { setView({ name: 'chat' }); setMobileOpen(false) }}
                     className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-accent transition-colors"
                   >
-                    <Bot className="h-4 w-4 text-gold" /> AI Chatbot Kearsipan
+                    <Bot className="h-4 w-4 text-gold" /> {t('nav.chatbot')} Kearsipan
                   </button>
                   <button
                     onClick={() => { setView({ name: 'verify-certificate' }); setMobileOpen(false) }}
                     className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-accent transition-colors"
                   >
-                    <ShieldCheck className="h-4 w-4 text-gold" /> Verifikasi Sertifikat
+                    <ShieldCheck className="h-4 w-4 text-gold" /> {t('nav.verify')} Sertifikat
                   </button>
                 </div>
               </div>
@@ -230,6 +259,8 @@ export function Header() {
           </Sheet>
         </div>
       </div>
+
+      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
   )
 }

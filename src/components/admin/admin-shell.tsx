@@ -11,22 +11,23 @@ import {
   LogOut, ChevronRight, BookOpen, Settings, Globe,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslation } from '@/lib/i18n'
 
 interface AdminNavItem {
   key: string
-  label: string
+  labelKey: string
   icon: any
   view: any
 }
 
 const NAV_ITEMS: AdminNavItem[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, view: { name: 'admin-dashboard' } },
-  { key: 'cms', label: 'Website Publik', icon: Globe, view: { name: 'admin-cms' } },
-  { key: 'archives', label: 'Arsip Digital', icon: Archive, view: { name: 'admin-archives' } },
-  { key: 'certificates', label: 'E-Certificate', icon: Award, view: { name: 'admin-certificates' } },
-  { key: 'events', label: 'Event & Registrasi', icon: CalendarCheck, view: { name: 'admin-events' } },
-  { key: 'reports', label: 'Laporan', icon: FileBarChart, view: { name: 'admin-reports' } },
-  { key: 'settings', label: 'Pengaturan', icon: Settings, view: { name: 'admin-settings' } },
+  { key: 'dashboard', labelKey: 'admin.dashboard', icon: LayoutDashboard, view: { name: 'admin-dashboard' } },
+  { key: 'cms', labelKey: 'admin.cms', icon: Globe, view: { name: 'admin-cms' } },
+  { key: 'archives', labelKey: 'admin.archives', icon: Archive, view: { name: 'admin-archives' } },
+  { key: 'certificates', labelKey: 'admin.certificates', icon: Award, view: { name: 'admin-certificates' } },
+  { key: 'events', labelKey: 'admin.events', icon: CalendarCheck, view: { name: 'admin-events' } },
+  { key: 'reports', labelKey: 'admin.reports', icon: FileBarChart, view: { name: 'admin-reports' } },
+  { key: 'settings', labelKey: 'admin.settings', icon: Settings, view: { name: 'admin-settings' } },
 ]
 
 export function AdminShell({
@@ -43,6 +44,7 @@ export function AdminShell({
   actions?: React.ReactNode
 }) {
   const { user, setView, logout } = useApp()
+  const { t } = useTranslation()
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -85,7 +87,7 @@ export function AdminShell({
                 }`}
               >
                 <item.icon className="h-4 w-4" />
-                {item.label}
+                {t(item.labelKey)}
                 {activeKey === item.key && <ChevronRight className="ml-auto h-4 w-4" />}
               </button>
             ))}
@@ -95,13 +97,13 @@ export function AdminShell({
               onClick={() => setView({ name: 'public' })}
               className="flex items-center gap-3 w-full rounded-lg px-4 py-2.5 text-sm font-medium bg-card hover:bg-accent text-foreground/70 hover:text-navy dark:hover:text-white transition-all"
             >
-              <BookOpen className="h-4 w-4" /> Lihat Website
+              <BookOpen className="h-4 w-4" /> {t('admin.viewWebsite')}
             </button>
             <button
               onClick={handleLogout}
               className="flex items-center gap-3 w-full rounded-lg px-4 py-2.5 text-sm font-medium bg-card hover:bg-red-50 dark:hover:bg-red-900/20 text-foreground/70 hover:text-red-600 dark:hover:text-red-400 transition-all"
             >
-              <LogOut className="h-4 w-4" /> Keluar
+              <LogOut className="h-4 w-4" /> {t('admin.logout')}
             </button>
           </aside>
 
