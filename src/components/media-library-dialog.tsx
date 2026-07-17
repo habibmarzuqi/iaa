@@ -183,7 +183,7 @@ export function MediaLibraryDialog({ open, onOpenChange, onSelect, filterType }:
                     {/* Preview */}
                     <div className="aspect-square bg-muted relative overflow-hidden">
                       {isImage ? (
-                        // eslint-disable-next-line @next/next/no-img-element
+                         
                         <img src={asset.url} alt={asset.alt || asset.filename} className="h-full w-full object-cover" />
                       ) : (
                         <div className="h-full w-full grid place-items-center">

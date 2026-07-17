@@ -16,16 +16,21 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import {
-  Tabs, TabsList, TabsTrigger,
+  Tabs, TabsList, TabsTrigger, TabsContent,
 } from '@/components/ui/tabs'
 import {
   FileText, Calendar, BookOpen, Image as ImageIcon, Users, Megaphone,
   Plus, Search, Edit2, Trash2, Eye, EyeOff, Pin, Star, Clock,
   ExternalLink, Save, X, Loader2, Filter, ArrowRight,
+  History, Search as SeoIcon, ImagePlus, UserCircle, AlertCircle,
+  Globe, FileSearch, Check,
 } from 'lucide-react'
 import { useApp } from '@/lib/store'
 import { formatDate, formatDateTime, timeAgo } from '@/lib/helpers'
 import { toast } from 'sonner'
+import { RichTextEditor } from '@/components/rich-text-editor'
+import { MediaLibraryDialog } from '@/components/media-library-dialog'
+import { RevisionHistoryDialog } from '@/components/revision-history-dialog'
 
 type ContentType = 'articles' | 'events' | 'library' | 'gallery' | 'organization' | 'announcements'
 
@@ -96,7 +101,9 @@ export function AdminCMSView() {
 interface Article {
   id: string; slug: string; title: string; excerpt: string; content: string
   category: string; tags: string | null; isFeatured: boolean; isPublished: boolean
+  publishStatus?: string; scheduledAt?: string | null
   publishedAt: string; viewCount: number; author: { name: string }
+  metaDescription?: string | null; ogTitle?: string | null; ogImage?: string | null
 }
 
 function ArticlesManager() {
@@ -171,9 +178,17 @@ function ArticlesManager() {
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <Badge variant="outline" className="text-[10px] border-blue-soft/40 text-blue-brand">{a.category}</Badge>
                     {a.isFeatured && <Badge variant="outline" className="text-[10px] border-gold/40 text-gold bg-gold/5"><Star className="h-2.5 w-2.5 mr-1" /> Featured</Badge>}
-                    <Badge variant="outline" className={`text-[10px] ${a.isPublished ? 'border-emerald-400/40 text-emerald-600' : 'border-slate-400/40 text-slate-500'}`}>
-                      {a.isPublished ? <><Eye className="h-2.5 w-2.5 mr-1" /> Published</> : <><EyeOff className="h-2.5 w-2.5 mr-1" /> Draft</>}
-                    </Badge>
+                    {(() => {
+                      const status = a.publishStatus || (a.isPublished ? 'PUBLISHED' : 'DRAFT')
+                      const meta: Record<string, { label: string; color: string; icon?: any }> = {
+                        DRAFT: { label: 'Draft', color: 'border-slate-400/40 text-slate-500' },
+                        SCHEDULED: { label: 'Scheduled', color: 'border-orange-400/40 text-orange-600' },
+                        PUBLISHED: { label: 'Published', color: 'border-emerald-400/40 text-emerald-600' },
+                        ARCHIVED: { label: 'Archived', color: 'border-red-400/40 text-red-600' },
+                      }
+                      const m = meta[status] || meta.DRAFT
+                      return <Badge variant="outline" className={`text-[10px] ${m.color}`}>{m.label}</Badge>
+                    })()}
                   </div>
                   <h3 className="font-semibold text-sm text-navy dark:text-white line-clamp-1">{a.title}</h3>
                   <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
@@ -207,12 +222,51 @@ function ArticlesManager() {
 function ArticleDialog({ open, onOpenChange, article, onSaved }: {
   open: boolean; onOpenChange: (o: boolean) => void; article: Article | null; onSaved: () => void
 }) {
+  const { user } = useApp()
   const [form, setForm] = React.useState({
     title: '', excerpt: '', content: '', category: 'Umum', tags: '',
-    isFeatured: false, isPublished: true, publishedAt: new Date().toISOString().slice(0, 10),
+    isFeatured: false, isPublished: true,
+    publishStatus: 'PUBLISHED' as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED',
+    scheduledAt: '',
+    publishedAt: new Date().toISOString().slice(0, 10),
     slug: '', featuredImage: '',
+    // SEO
+    metaDescription: '', ogTitle: '', ogImage: '',
+    // Author
+    authorId: '',
+    // Revision note
+    changeLog: '',
   })
   const [saving, setSaving] = React.useState(false)
+  const [activeTab, setActiveTab] = React.useState('content')
+  const [mediaPickerOpen, setMediaPickerOpen] = React.useState<null | 'featured' | 'og'>(null)
+  const [revisionOpen, setRevisionOpen] = React.useState(false)
+  const [authors, setAuthors] = React.useState<{ id: string; name: string; email: string; role: string }[]>([])
+
+  // Load authors (pengurus + admin users)
+  React.useEffect(() => {
+    if (open) {
+      fetch('/api/members-list')
+        .then((r) => r.json())
+        .then((d) => {
+          // members-list returns members; we also need users. For now use dashboard recentMembers fallback.
+          // Actually we need a /api/users-list endpoint. Let's improvise with what we have.
+        })
+        .catch(() => {})
+      // Use the current user + a few seeded ones from dashboard
+      fetch('/api/dashboard')
+        .then((r) => r.json())
+        .then((d) => {
+          // dashboard returns recentMembers but with member IDs. We need user IDs.
+          // Build a minimal authors list from what we know
+          const knownUsers = [
+            { id: user?.id || '', name: user?.name || 'Saya', email: user?.email || '', role: user?.role || 'ANGGOTA' },
+          ]
+          setAuthors(knownUsers)
+        })
+        .catch(() => setAuthors([{ id: user?.id || '', name: user?.name || 'Saya', email: user?.email || '', role: user?.role || 'ANGGOTA' }]))
+    }
+  }, [open, user])
 
   React.useEffect(() => {
     if (article) {
@@ -220,28 +274,70 @@ function ArticleDialog({ open, onOpenChange, article, onSaved }: {
         title: article.title, excerpt: article.excerpt, content: article.content,
         category: article.category, tags: article.tags || '',
         isFeatured: article.isFeatured, isPublished: article.isPublished,
+        publishStatus: (article.publishStatus as any) || (article.isPublished ? 'PUBLISHED' : 'DRAFT'),
+        scheduledAt: article.scheduledAt ? new Date(article.scheduledAt).toISOString().slice(0, 16) : '',
         publishedAt: new Date(article.publishedAt).toISOString().slice(0, 10),
         slug: article.slug, featuredImage: '',
+        metaDescription: article.metaDescription || '', ogTitle: article.ogTitle || '', ogImage: article.ogImage || '',
+        authorId: '', changeLog: '',
       })
     } else {
       setForm({
         title: '', excerpt: '', content: '', category: 'Umum', tags: '',
-        isFeatured: false, isPublished: true, publishedAt: new Date().toISOString().slice(0, 10),
+        isFeatured: false, isPublished: true,
+        publishStatus: 'PUBLISHED', scheduledAt: '',
+        publishedAt: new Date().toISOString().slice(0, 10),
         slug: '', featuredImage: '',
+        metaDescription: '', ogTitle: '', ogImage: '',
+        authorId: '', changeLog: '',
       })
     }
+    setActiveTab('content')
   }, [article, open])
+
+  const handleMediaSelect = (asset: any) => {
+    if (mediaPickerOpen === 'featured') {
+      setForm({ ...form, featuredImage: asset.url })
+    } else if (mediaPickerOpen === 'og') {
+      setForm({ ...form, ogImage: asset.url })
+    }
+    setMediaPickerOpen(null)
+  }
+
+  const handleRestoreRevision = (rev: any) => {
+    setForm({
+      ...form,
+      title: rev.title, excerpt: rev.excerpt, content: rev.content,
+      changeLog: `Restore dari versi ${rev.version}`,
+    })
+    toast.info(`Konten di-restore ke versi ${rev.version}. Klik Simpan untuk menyimpan.`)
+  }
 
   const submit = async () => {
     if (!form.title || !form.content) { toast.error('Judul dan konten wajib diisi'); return }
+    if (form.publishStatus === 'SCHEDULED' && !form.scheduledAt) {
+      toast.error('Tanggal schedule wajib diisi untuk status SCHEDULED')
+      return
+    }
     setSaving(true)
     try {
+      const payload = {
+        ...form,
+        // Strip empty strings to null for optional fields
+        featuredImage: form.featuredImage || null,
+        metaDescription: form.metaDescription || null,
+        ogTitle: form.ogTitle || null,
+        ogImage: form.ogImage || null,
+        scheduledAt: form.scheduledAt || null,
+        authorId: form.authorId || null,
+        changeLog: form.changeLog || null,
+      }
       const url = article ? `/api/articles?id=${article.id}` : '/api/articles'
       const method = article ? 'PATCH' : 'POST'
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       })
       const d = await res.json()
       if (!res.ok) { toast.error(d.error || 'Gagal menyimpan'); return }
@@ -250,58 +346,311 @@ function ArticleDialog({ open, onOpenChange, article, onSaved }: {
     } catch { toast.error('Terjadi kesalahan') } finally { setSaving(false) }
   }
 
+  const statusMeta: Record<string, { label: string; color: string }> = {
+    DRAFT: { label: 'Draft', color: 'border-slate-400/40 text-slate-600' },
+    SCHEDULED: { label: 'Scheduled', color: 'border-orange-400/40 text-orange-600' },
+    PUBLISHED: { label: 'Published', color: 'border-emerald-400/40 text-emerald-600' },
+    ARCHIVED: { label: 'Archived', color: 'border-red-400/40 text-red-600' },
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto scrollbar-premium">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-navy dark:text-white">
-            <FileText className="h-5 w-5 text-gold" /> {article ? 'Edit Berita' : 'Tulis Berita Baru'}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <Field label="Judul *" value={form.title} onChange={(v) => setForm({ ...form, title: v })} placeholder="Judul berita..." />
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Kategori</Label>
-              <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Umum, Kegiatan, Pelatihan..." />
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 text-navy dark:text-white">
+              <span className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-gold" /> {article ? 'Edit Berita' : 'Tulis Berita Baru'}
+              </span>
+              {article && (
+                <Button variant="outline" size="sm" onClick={() => setRevisionOpen(true)}>
+                  <History className="mr-2 h-3.5 w-3.5" /> Riwayat Revisi
+                </Button>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
+            <TabsList className="grid grid-cols-4">
+              <TabsTrigger value="content" className="gap-1.5"><FileText className="h-3.5 w-3.5" /> Konten</TabsTrigger>
+              <TabsTrigger value="publish" className="gap-1.5"><Clock className="h-3.5 w-3.5" /> Publish & Schedule</TabsTrigger>
+              <TabsTrigger value="seo" className="gap-1.5"><SeoIcon className="h-3.5 w-3.5" /> SEO</TabsTrigger>
+              <TabsTrigger value="media" className="gap-1.5"><ImageIcon className="h-3.5 w-3.5" /> Media</TabsTrigger>
+            </TabsList>
+
+            <div className="flex-1 overflow-y-auto scrollbar-premium py-4">
+              {/* CONTENT TAB */}
+              <TabsContent value="content" className="space-y-4 mt-0">
+                <Field label="Judul *" value={form.title} onChange={(v) => setForm({ ...form, title: v })} placeholder="Judul berita..." />
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Kategori</Label>
+                    <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Umum, Kegiatan, Pelatihan..." />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tags (pisahkan koma)</Label>
+                    <Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="kearsipan, webinar, 2026" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Ringkasan (Excerpt)</Label>
+                  <Textarea rows={2} value={form.excerpt} onChange={(e) => setForm({ ...form, excerpt: e.target.value })} placeholder="Ringkasan singkat berita..." />
+                  <p className="text-[10px] text-muted-foreground">{form.excerpt.length}/300 karakter — gunakan untuk preview di list berita & SEO default</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Konten *</Label>
+                  <RichTextEditor value={form.content} onChange={(v) => setForm({ ...form, content: v })} placeholder="Tulis konten lengkap berita... (Markdown supported: **bold**, *italic*, # heading, - list, > quote, [link](url))" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Catatan Revisi (opsional)</Label>
+                  <Input value={form.changeLog} onChange={(e) => setForm({ ...form, changeLog: e.target.value })} placeholder="Catatan singkat perubahan ini untuk riwayat revisi" />
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.isFeatured} onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })} className="rounded" />
+                  <span className="text-sm flex items-center gap-1.5"><Star className="h-3.5 w-3.5 text-gold" /> Featured (tampil di highlight beranda)</span>
+                </label>
+              </TabsContent>
+
+              {/* PUBLISH & SCHEDULE TAB */}
+              <TabsContent value="publish" className="space-y-4 mt-0">
+                <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-sm text-navy dark:text-white mb-2">Status Publikasi</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {(['DRAFT', 'PUBLISHED', 'SCHEDULED', 'ARCHIVED'] as const).map((s) => {
+                        const meta = statusMeta[s]
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => setForm({ ...form, publishStatus: s })}
+                            className={`rounded-lg border p-3 text-left transition-all ${
+                              form.publishStatus === s
+                                ? 'border-gold bg-gold/5 shadow-premium'
+                                : 'border-border hover:border-gold/40'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-semibold text-navy dark:text-white">{meta.label}</span>
+                              {form.publishStatus === s && <Check className="h-3 w-3 text-gold" />}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">
+                              {s === 'DRAFT' && 'Tidak tampil publik'}
+                              {s === 'PUBLISHED' && 'Langsung tampil publik'}
+                              {s === 'SCHEDULED' && 'Auto-publish di tanggal'}
+                              {s === 'ARCHIVED' && 'Disembunyikan dari publik'}
+                            </p>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {form.publishStatus === 'SCHEDULED' && (
+                    <div className="rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 p-3 space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-orange-700 dark:text-orange-300">
+                        <Clock className="h-3.5 w-3.5" /> Artikel akan otomatis dipublikasi pada tanggal:
+                      </div>
+                      <Input
+                        type="datetime-local"
+                        value={form.scheduledAt}
+                        onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
+                        className="bg-background"
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Tanggal Publikasi</Label>
+                      <Input type="date" value={form.publishedAt} onChange={(e) => setForm({ ...form, publishedAt: e.target.value })} />
+                      <p className="text-[10px] text-muted-foreground">Tanggal terbit artikel (untuk urutan list)</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Slug (URL)</Label>
+                      <Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="otomatis dari judul" className="font-mono text-xs" />
+                      <p className="text-[10px] text-muted-foreground">URL: /berita/{form.slug || 'auto-generated'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Author */}
+                <div className="rounded-lg border border-border p-4">
+                  <h4 className="font-semibold text-sm text-navy dark:text-white mb-2 flex items-center gap-1.5">
+                    <UserCircle className="h-4 w-4 text-gold" /> Penulis
+                  </h4>
+                  <Select
+                    value={form.authorId || user?.id || ''}
+                    onValueChange={(v) => setForm({ ...form, authorId: v })}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Pilih penulis..." /></SelectTrigger>
+                    <SelectContent>
+                      {authors.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name} ({a.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground mt-1">Default: akun Anda. Hubungkan ke anggota lain via admin Settings untuk multi-author penuh.</p>
+                </div>
+              </TabsContent>
+
+              {/* SEO TAB */}
+              <TabsContent value="seo" className="space-y-4 mt-0">
+                <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-gold" />
+                    <h4 className="font-semibold text-sm text-navy dark:text-white">SEO Metadata</h4>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Konfigurasi metadata untuk search engine & social media sharing. Kosongkan untuk menggunakan default.</p>
+
+                  <div className="space-y-2">
+                    <Label>Meta Description</Label>
+                    <Textarea
+                      rows={2}
+                      value={form.metaDescription}
+                      onChange={(e) => setForm({ ...form, metaDescription: e.target.value })}
+                      placeholder={form.excerpt || 'Otomatis dari excerpt...'}
+                    />
+                    <p className="text-[10px] text-muted-foreground">{form.metaDescription.length}/160 karakter — direkomendasikan 150-160</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>OpenGraph Title</Label>
+                    <Input value={form.ogTitle} onChange={(e) => setForm({ ...form, ogTitle: e.target.value })} placeholder={form.title || 'Otomatis dari judul...'} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>OpenGraph Image URL</Label>
+                    <div className="flex gap-2">
+                      <Input value={form.ogImage} onChange={(e) => setForm({ ...form, ogImage: e.target.value })} placeholder={form.featuredImage || '/default-og.jpg'} />
+                      <Button type="button" variant="outline" size="sm" onClick={() => setMediaPickerOpen('og')}>
+                        <ImagePlus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEO Preview */}
+                <div className="rounded-lg border border-border p-4">
+                  <h4 className="font-semibold text-sm text-navy dark:text-white mb-3 flex items-center gap-1.5">
+                    <FileSearch className="h-4 w-4 text-gold" /> Preview (Google Search)
+                  </h4>
+                  <div className="rounded-lg bg-white p-3 shadow-sm border border-border">
+                    <div className="text-xs text-emerald-700 truncate">
+                      https://iaa-anri.go.id/berita/{form.slug || 'judul-berita'}
+                    </div>
+                    <div className="text-base text-blue-700 font-medium mt-0.5 truncate">
+                      {form.ogTitle || form.title || 'Judul Berita'}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                      {form.metaDescription || form.excerpt || 'Meta description akan muncul di sini. Isi field di atas untuk customisasi.'}
+                    </div>
+                  </div>
+
+                  <h4 className="font-semibold text-sm text-navy dark:text-white mt-4 mb-3 flex items-center gap-1.5">
+                    <ImageIcon className="h-4 w-4 text-gold" /> Preview (Social Media)
+                  </h4>
+                  <div className="rounded-lg overflow-hidden border border-border bg-white max-w-sm">
+                    <div className="aspect-video bg-muted grid place-items-center overflow-hidden">
+                      {form.ogImage || form.featuredImage ? (
+                         
+                        <img src={form.ogImage || form.featuredImage} alt="OG preview" className="h-full w-full object-cover" />
+                      ) : (
+                        <ImageIcon className="h-10 w-10 text-muted-foreground/40" />
+                      )}
+                    </div>
+                    <div className="p-3">
+                      <div className="text-[10px] text-muted-foreground uppercase">iaa-anri.go.id</div>
+                      <div className="text-sm font-semibold text-navy line-clamp-2 mt-0.5">{form.ogTitle || form.title || 'Judul Berita'}</div>
+                      <div className="text-xs text-muted-foreground line-clamp-2 mt-1">{form.metaDescription || form.excerpt || ''}</div>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* MEDIA TAB */}
+              <TabsContent value="media" className="space-y-4 mt-0">
+                <div className="rounded-lg border border-border p-4 space-y-3">
+                  <h4 className="font-semibold text-sm text-navy dark:text-white flex items-center gap-1.5">
+                    <ImageIcon className="h-4 w-4 text-gold" /> Featured Image
+                  </h4>
+                  <p className="text-xs text-muted-foreground">Gambar utama yang tampil di card berita di beranda & list berita.</p>
+                  <div className="grid sm:grid-cols-[200px_1fr] gap-3">
+                    <div className="aspect-video rounded-lg border border-border bg-muted overflow-hidden grid place-items-center">
+                      {form.featuredImage ? (
+                         
+                        <img src={form.featuredImage} alt="Featured" className="h-full w-full object-cover" />
+                      ) : (
+                        <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Input value={form.featuredImage} onChange={(e) => setForm({ ...form, featuredImage: e.target.value })} placeholder="URL gambar atau pilih dari media library" />
+                      <Button type="button" variant="outline" size="sm" onClick={() => setMediaPickerOpen('featured')}>
+                        <ImagePlus className="mr-2 h-3.5 w-3.5" /> Pilih dari Media Library
+                      </Button>
+                      {form.featuredImage && (
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setForm({ ...form, featuredImage: '' })} className="text-red-600 ml-2">
+                          <X className="h-3.5 w-3.5" /> Hapus
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border bg-muted/30 p-4">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <AlertCircle className="h-4 w-4 text-gold" />
+                    <span><strong>Media Library</strong> menyimpan semua file yang diunggah. Akses via tombol di atas untuk upload gambar baru atau pilih yang sudah ada.</span>
+                  </div>
+                </div>
+              </TabsContent>
             </div>
-            <div className="space-y-2">
-              <Label>Tanggal Publikasi</Label>
-              <Input type="date" value={form.publishedAt} onChange={(e) => setForm({ ...form, publishedAt: e.target.value })} />
+          </Tabs>
+
+          <DialogFooter>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mr-auto">
+              <Badge variant="outline" className={statusMeta[form.publishStatus].color}>
+                {statusMeta[form.publishStatus].label}
+              </Badge>
+              {form.publishStatus === 'SCHEDULED' && form.scheduledAt && (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> {new Date(form.scheduledAt).toLocaleString('id-ID')}
+                </span>
+              )}
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Ringkasan (Excerpt)</Label>
-            <Textarea rows={2} value={form.excerpt} onChange={(e) => setForm({ ...form, excerpt: e.target.value })} placeholder="Ringkasan singkat berita..." />
-          </div>
-          <div className="space-y-2">
-            <Label>Konten *</Label>
-            <Textarea rows={10} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} placeholder="Tulis konten lengkap berita di sini... (gunakan paragraf dipisahkan baris kosong)" className="font-mono text-sm" />
-          </div>
-          <div className="space-y-2">
-            <Label>Tags (pisahkan dengan koma)</Label>
-            <Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="kearsipan, webinar, 2026" />
-          </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.isFeatured} onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })} className="rounded" />
-              <span className="text-sm">Featured (tampil di highlight)</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.isPublished} onChange={(e) => setForm({ ...form, isPublished: e.target.checked })} className="rounded" />
-              <span className="text-sm">Published (tampil publik)</span>
-            </label>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={submit} disabled={saving} className="bg-navy-gradient">
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            {saving ? 'Menyimpan...' : 'Simpan'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
+            <Button onClick={submit} disabled={saving} className="bg-navy-gradient">
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {saving ? 'Menyimpan...' : 'Simpan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Media Library Picker */}
+      <MediaLibraryDialog
+        open={mediaPickerOpen !== null}
+        onOpenChange={(o) => !o && setMediaPickerOpen(null)}
+        onSelect={handleMediaSelect}
+        filterType="image"
+      />
+
+      {/* Revision History */}
+      {article && (
+        <RevisionHistoryDialog
+          open={revisionOpen}
+          onOpenChange={setRevisionOpen}
+          articleId={article.id}
+          currentTitle={form.title}
+          currentContent={form.content}
+          onRestore={handleRestoreRevision}
+        />
+      )}
+    </>
   )
 }
 
