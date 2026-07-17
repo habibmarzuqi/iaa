@@ -16,6 +16,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import {
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+} from '@/components/ui/sheet'
+import {
   Tabs, TabsList, TabsTrigger, TabsContent,
 } from '@/components/ui/tabs'
 import {
@@ -1104,6 +1107,9 @@ function GalleryManager() {
   const [loading, setLoading] = React.useState(true)
   const [editing, setEditing] = React.useState<any | null>(null)
   const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [manageAlbum, setManageAlbum] = React.useState<any | null>(null) // album being managed (photos)
+  const [photos, setPhotos] = React.useState<any[]>([])
+  const [uploadingPhoto, setUploadingPhoto] = React.useState(false)
 
   const load = React.useCallback(() => {
     setLoading(true)
@@ -1114,6 +1120,54 @@ function GalleryManager() {
   }, [])
 
   React.useEffect(() => { load() }, [load])
+
+  const loadPhotos = React.useCallback((albumId: string) => {
+    fetch(`/api/gallery?id=${albumId}`)
+      .then((r) => r.json())
+      .then((d) => setPhotos(d.album?.photos ?? []))
+      .catch(() => setPhotos([]))
+  }, [])
+
+  const openManage = (album: any) => {
+    setManageAlbum(album)
+    loadPhotos(album.id)
+  }
+
+  const handleUploadPhoto = async (files: FileList | null) => {
+    if (!files || !manageAlbum) return
+    setUploadingPhoto(true)
+    let success = 0
+    for (const file of Array.from(files)) {
+      try {
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('albumId', manageAlbum.id)
+        fd.append('title', file.name.replace(/\.[^/.]+$/, ''))
+        const res = await fetch('/api/gallery/upload', { method: 'POST', body: fd })
+        if (res.ok) success++
+        else {
+          const d = await res.json()
+          toast.error(`${file.name}: ${d.error}`)
+        }
+      } catch { toast.error(`Gagal upload ${file.name}`) }
+    }
+    setUploadingPhoto(false)
+    if (success > 0) {
+      toast.success(`${success} foto berhasil diunggah`)
+      loadPhotos(manageAlbum.id)
+      load() // refresh album count
+    }
+  }
+
+  const deletePhoto = async (photoId: string) => {
+    if (!confirm('Hapus foto ini?')) return
+    try {
+      await fetch(`/api/gallery?action=photo&id=${photoId}`, { method: 'DELETE' })
+      toast.success('Foto dihapus')
+      setPhotos((ps) => ps.filter((p) => p.id !== photoId))
+      load()
+    } catch { toast.error('Gagal menghapus foto') }
+  }
 
   const remove = async (a: any) => {
     if (!confirm(`Hapus album "${a.title}"? Semua foto di dalamnya akan ikut terhapus.`)) return
@@ -1146,19 +1200,27 @@ function GalleryManager() {
             {albums.map((a, i) => (
               <motion.div key={a.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}>
                 <Card className="overflow-hidden hover:shadow-premium transition-shadow">
-                  <div className="relative h-32 bg-navy-gradient overflow-hidden">
+                  <div className="relative h-32 bg-navy-gradient overflow-hidden cursor-pointer" onClick={() => openManage(a)}>
                     <div className="absolute inset-0 bg-grid opacity-30" />
                     <div className="absolute inset-0 grid place-items-center">
                       <ImageIcon className="h-10 w-10 text-white/40" />
                     </div>
                     <Badge className="absolute top-2 right-2 bg-white/20 text-white border-white/30 backdrop-blur text-[10px]">{a._count?.photos ?? 0} foto</Badge>
+                    <div className="absolute bottom-2 left-2 right-2 text-center">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-black/40 backdrop-blur px-2 py-1 text-[10px] text-white">
+                        <ImagePlus className="h-3 w-3" /> Kelola Foto
+                      </span>
+                    </div>
                   </div>
                   <CardContent className="p-3">
                     <h4 className="font-semibold text-sm text-navy dark:text-white line-clamp-1">{a.title}</h4>
                     <p className="text-[10px] text-muted-foreground line-clamp-2 mt-1">{a.description || 'Tanpa deskripsi'}</p>
                     <div className="flex gap-1 mt-2">
-                      <Button size="sm" variant="outline" className="h-7 flex-1 text-[10px]" onClick={() => { setEditing(a); setDialogOpen(true) }}>
-                        <Edit2 className="h-3 w-3 mr-1" /> Edit
+                      <Button size="sm" variant="outline" className="h-7 flex-1 text-[10px]" onClick={() => openManage(a)}>
+                        <ImageIcon className="h-3 w-3 mr-1" /> Foto
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => { setEditing(a); setDialogOpen(true) }}>
+                        <Edit2 className="h-3 w-3" />
                       </Button>
                       <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-600" onClick={() => remove(a)}>
                         <Trash2 className="h-3 w-3" />
@@ -1173,6 +1235,103 @@ function GalleryManager() {
       </CardContent>
 
       <AlbumDialog open={dialogOpen} onOpenChange={setDialogOpen} album={editing} onSaved={() => { setDialogOpen(false); load() }} />
+
+      {/* Manage Photos Sheet */}
+      <Sheet open={!!manageAlbum} onOpenChange={(o) => !o && setManageAlbum(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto scrollbar-premium">
+          {manageAlbum && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="text-left flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5 text-gold" /> Kelola Foto: {manageAlbum.title}
+                </SheetTitle>
+              </SheetHeader>
+              <div className="mt-4 space-y-4">
+                {/* Upload area */}
+                <div className="rounded-lg border-2 border-dashed border-border p-4 text-center hover:border-gold/40 transition-colors">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => handleUploadPhoto(e.target.files)}
+                    disabled={uploadingPhoto}
+                    className="hidden"
+                    id="photo-upload-input"
+                  />
+                  <label htmlFor="photo-upload-input" className="cursor-pointer">
+                    {uploadingPhoto ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="h-8 w-8 text-gold animate-spin" />
+                        <p className="text-xs text-muted-foreground">Mengunggah foto...</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="grid h-12 w-12 place-items-center rounded-full bg-gold/10 text-gold">
+                          <ImagePlus className="h-6 w-6" />
+                        </div>
+                        <p className="text-sm font-medium text-navy dark:text-white">Klik untuk upload foto</p>
+                        <p className="text-[10px] text-muted-foreground">atau drag & drop · Multiple files supported · Max 10MB/foto</p>
+                      </div>
+                    )}
+                  </label>
+                </div>
+
+                {/* Photos grid */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Foto di Album ({photos.length})
+                    </h4>
+                  </div>
+                  {photos.length === 0 ? (
+                    <div className="text-center py-8">
+                      <ImageIcon className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
+                      <p className="text-xs text-muted-foreground">Belum ada foto. Upload foto pertama Anda.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      {photos.map((p, i) => (
+                        <motion.div
+                          key={p.id}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: i * 0.03 }}
+                          className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted"
+                        >
+                          { }
+                          <img src={p.url} alt={p.title || 'Foto'} className="h-full w-full object-cover" />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center">
+                            <div className="flex gap-1">
+                              <a href={p.url} target="_blank" rel="noopener noreferrer">
+                                <Button size="sm" variant="secondary" className="h-7 w-7 p-0">
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                              </a>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="h-7 w-7 p-0 text-red-600 hover:bg-red-50"
+                                onClick={() => deletePhoto(p.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                          {p.title && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1">
+                              <p className="text-[9px] text-white truncate">{p.title}</p>
+                            </div>
+                          )}
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </Card>
   )
 }

@@ -54,8 +54,8 @@ const ACCESS_LEVELS = [
 ]
 
 interface ArchiveVersion {
-  id: string; version: number; fileName: string | null; fileSize: number | null
-  mimeType: string | null; changeLog: string | null; createdAt: string
+  id: string; version: number; fileName: string | null; fileUrl: string | null
+  fileSize: number | null; mimeType: string | null; changeLog: string | null; createdAt: string
   uploadedBy: { name: string }
 }
 
@@ -288,9 +288,12 @@ export function AdminArchivesView() {
 
                 {/* Versions */}
                 <div>
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                    <History className="h-3.5 w-3.5 text-gold" /> Riwayat Versi ({selected.versions?.length ?? 0})
-                  </h4>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                      <History className="h-3.5 w-3.5 text-gold" /> Riwayat Versi ({selected.versions?.length ?? 0})
+                    </h4>
+                    <AddVersionButton archiveId={selected.id} onAdded={() => { setDetailOpen(false); openDetail(selected) }} />
+                  </div>
                   <div className="space-y-2">
                     {selected.versions?.map((v) => (
                       <div key={v.id} className="rounded-lg border border-border bg-muted/30 p-3">
@@ -307,14 +310,20 @@ export function AdminArchivesView() {
                         )}
                         {v.changeLog && <p className="text-xs text-muted-foreground mt-1 italic">"{v.changeLog}"</p>}
                         <div className="text-[10px] text-muted-foreground mt-1">Diunggah oleh: {v.uploadedBy.name}</div>
-                        <div className="flex gap-1.5 mt-2">
-                          <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => toast.info('Preview PDF akan segera tersedia')}>
-                            <Eye className="mr-1 h-3 w-3" /> Preview
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => toast.info('Download dimulai...')}>
-                            <Download className="mr-1 h-3 w-3" /> Download
-                          </Button>
-                        </div>
+                        {v.fileUrl && (
+                          <div className="flex gap-1.5 mt-2">
+                            <a href={v.fileUrl} target="_blank" rel="noopener noreferrer">
+                              <Button size="sm" variant="outline" className="h-7 text-[10px]">
+                                <Eye className="mr-1 h-3 w-3" /> Preview
+                              </Button>
+                            </a>
+                            <a href={v.fileUrl} download={v.fileName || undefined}>
+                              <Button size="sm" variant="outline" className="h-7 text-[10px]">
+                                <Download className="mr-1 h-3 w-3" /> Download
+                              </Button>
+                            </a>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -546,6 +555,111 @@ function CreateArchiveDialog({ open, onOpenChange, onCreated }: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// AddVersionButton — upload file untuk versi baru archive
+function AddVersionButton({ archiveId, onAdded }: { archiveId: string; onAdded: () => void }) {
+  const [open, setOpen] = React.useState(false)
+  const [uploading, setUploading] = React.useState(false)
+  const [changeLog, setChangeLog] = React.useState('')
+  const [fileData, setFileData] = React.useState<{ url: string; fileName: string; fileSize: number; mimeType: string } | null>(null)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  const handleUpload = async (file: File) => {
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/archives/upload', { method: 'POST', body: fd })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal upload'); return }
+      setFileData({ url: d.url, fileName: d.fileName, fileSize: d.fileSize, mimeType: d.mimeType })
+      toast.success('File terunggah')
+    } catch { toast.error('Gagal upload file') } finally { setUploading(false) }
+  }
+
+  const handleSubmit = async () => {
+    if (!fileData) { toast.error('Upload file terlebih dahulu'); return }
+    try {
+      const res = await fetch(`/api/archives?id=${archiveId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          versionData: {
+            fileName: fileData.fileName,
+            fileUrl: fileData.url,
+            fileSize: fileData.fileSize,
+            mimeType: fileData.mimeType,
+            changeLog: changeLog || `Versi baru diunggah`,
+          },
+        }),
+      })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal menambah versi'); return }
+      toast.success(`Versi baru berhasil ditambahkan`)
+      setOpen(false)
+      setFileData(null)
+      setChangeLog('')
+      onAdded()
+    } catch { toast.error('Gagal menambah versi') }
+  }
+
+  return (
+    <>
+      <Button size="sm" variant="outline" className="h-7 text-[10px] border-gold/40 text-gold hover:bg-gold/10" onClick={() => setOpen(true)}>
+        <Plus className="mr-1 h-3 w-3" /> Tambah Versi
+      </Button>
+
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setFileData(null); setChangeLog('') } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-navy dark:text-white">
+              <Plus className="h-5 w-5 text-gold" /> Tambah Versi Baru
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Upload File Dokumen *</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.svg,.mp4,.txt,.csv,.zip"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f) }}
+                className="block w-full text-xs file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-navy-gradient file:text-white file:font-medium file:cursor-pointer hover:file:opacity-90"
+              />
+              {uploading && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Mengunggah...
+                </div>
+              )}
+              {fileData && (
+                <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-2 flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-emerald-700 dark:text-emerald-300 truncate">{fileData.fileName}</div>
+                    <div className="text-[10px] text-emerald-600 dark:text-emerald-400">{(fileData.fileSize / 1024).toFixed(1)} KB · {fileData.mimeType}</div>
+                  </div>
+                  <a href={fileData.url} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:text-emerald-700">
+                    <Eye className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newChangeLog">Catatan Versi</Label>
+              <Input id="newChangeLog" value={changeLog} onChange={(e) => setChangeLog(e.target.value)} placeholder="Revisi pasal 5, update data, dll" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
+            <Button onClick={handleSubmit} disabled={!fileData || uploading} className="bg-navy-gradient">
+              <Plus className="mr-2 h-4 w-4" /> Tambah Versi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
