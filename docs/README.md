@@ -13,10 +13,12 @@ Dokumentasi lengkap untuk platform **IAA Digital — Ikatan Arsiparis ANRI**.
 | 05 | [Panduan Admin](./05-panduan-admin.md) | Cara menggunakan admin panel |
 | 06 | [API Reference](./06-api-reference.md) | Daftar lengkap semua API endpoints |
 | 07 | [Struktur Folder](./07-struktur-folder.md) | Struktur direktori proyek dan penjelasan |
+| 08 | [Server Requirements](./08-server-requirements.md) | Spesifikasi server, install script, security, monitoring |
 
 ## Quick Links
 
 - 🚀 **Mulai cepat?** Lihat [Deployment](./03-deployment.md)
+- 🖥️ **Butuh server apa?** Lihat [Server Requirements](./08-server-requirements.md)
 - 🔄 **Update aplikasi?** Lihat [Update](./04-update.md)
 - 📋 **Daftar fitur?** Lihat [Fitur](./02-fitur.md)
 - 🔧 **Tech stack?** Lihat [Teknologi](./01-teknologi.md)
