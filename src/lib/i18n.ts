@@ -31,6 +31,7 @@ const ID: Dict = {
   // ===== HEADER =====
   'nav.beranda': 'Beranda',
   'nav.tentang': 'Tentang',
+  'nav.tentangGroup': 'Tentang',
   'nav.pengurus': 'Pengurus',
   'nav.informasi': 'Informasi',
   'nav.berita': 'Berita',
@@ -352,6 +353,7 @@ const EN: Dict = {
   // ===== HEADER =====
   'nav.beranda': 'Home',
   'nav.tentang': 'About',
+  'nav.tentangGroup': 'About',
   'nav.pengurus': 'Officers',
   'nav.informasi': 'Information',
   'nav.berita': 'News',
