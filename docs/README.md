@@ -18,6 +18,7 @@ Dokumentasi lengkap untuk platform **IAA Digital — Ikatan Arsiparis ANRI**.
 | 10 | [Upload ke GitHub](./10-upload-github.md) | Cara upload proyek ke GitHub repository |
 | 11 | [Deployment ke cPanel](./11-deployment-cpanel.md) | Tutorial deploy ke cPanel shared hosting |
 | 12 | [cPanel via Git Clone](./12-deployment-cpanel-git.md) | Deploy cPanel langsung dari GitHub via Terminal |
+| 13 | [Deployment Lokal Laragon](./13-deployment-laragon.md) | Jalankan di Windows dengan Laragon (MySQL + Node.js) |
 
 ## Quick Links
 
@@ -25,6 +26,7 @@ Dokumentasi lengkap untuk platform **IAA Digital — Ikatan Arsiparis ANRI**.
 - ☁️ **Deploy ke Vercel?** Lihat [Deployment Vercel](./09-deployment-vercel.md)
 - 📦 **Deploy ke cPanel?** Lihat [Deployment cPanel](./11-deployment-cpanel.md)
 - 🖥️ **Butuh server apa?** Lihat [Server Requirements](./08-server-requirements.md)
+- 💻 **Jalankan di Windows?** Lihat [Laragon Guide](./13-deployment-laragon.md)
 - 📁 **Upload ke GitHub?** Lihat [GitHub Guide](./10-upload-github.md)
 - 🔄 **Update aplikasi?** Lihat [Update](./04-update.md)
 - 📋 **Daftar fitur?** Lihat [Fitur](./02-fitur.md)
