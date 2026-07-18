@@ -48,6 +48,13 @@ const DEFAULT_SETTINGS: Record<string, { value: string; type: string; category: 
   'seo.metaKeywords': { value: 'IAA, Ikatan Arsiparis ANRI, Arsiparis, ANRI, Kearsipan, Digital Platform', type: 'text', category: 'seo' },
   'seo.ogImage': { value: '', type: 'image', category: 'seo' },
   'seo.googleAnalyticsId': { value: '', type: 'text', category: 'seo' },
+
+  // HEADER FEATURES (toggle show/hide)
+  'header.showSearch': { value: 'true', type: 'boolean', category: 'header' },
+  'header.showAIChatbot': { value: 'true', type: 'boolean', category: 'header' },
+  'header.showLanguageSwitcher': { value: 'true', type: 'boolean', category: 'header' },
+  'header.showThemeToggle': { value: 'true', type: 'boolean', category: 'header' },
+  'header.showVerifyButton': { value: 'true', type: 'boolean', category: 'header' },
 }
 
 async function getSessionUser(req: NextRequest) {
