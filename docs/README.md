@@ -14,10 +14,12 @@ Dokumentasi lengkap untuk platform **IAA Digital — Ikatan Arsiparis ANRI**.
 | 06 | [API Reference](./06-api-reference.md) | Daftar lengkap semua API endpoints |
 | 07 | [Struktur Folder](./07-struktur-folder.md) | Struktur direktori proyek dan penjelasan |
 | 08 | [Server Requirements](./08-server-requirements.md) | Spesifikasi server, install script, security, monitoring |
+| 09 | [Deployment ke Vercel](./09-deployment-vercel.md) | Tutorial lengkap deploy ke Vercel + MySQL eksternal |
 
 ## Quick Links
 
-- 🚀 **Mulai cepat?** Lihat [Deployment](./03-deployment.md)
+- 🚀 **Deploy ke VPS?** Lihat [Deployment VPS](./03-deployment.md)
+- ☁️ **Deploy ke Vercel?** Lihat [Deployment Vercel](./09-deployment-vercel.md)
 - 🖥️ **Butuh server apa?** Lihat [Server Requirements](./08-server-requirements.md)
 - 🔄 **Update aplikasi?** Lihat [Update](./04-update.md)
 - 📋 **Daftar fitur?** Lihat [Fitur](./02-fitur.md)
