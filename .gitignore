@@ -52,3 +52,13 @@ prompt
 server.log
 # Skills directory
 /skills/
+# IAA Digital specific
+.env
+.env.local
+.env.production
+db/
+*.db
+*.db-journal
+public/uploads/
+agent-ctx/
+worklog.md
