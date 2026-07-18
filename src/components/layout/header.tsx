@@ -23,15 +23,16 @@ import { useTranslation } from '@/lib/i18n'
 import {
   Menu, LogOut, User as UserIcon, LayoutDashboard,
   FileText, Calendar, BookOpen, Users, Info, HelpCircle, Mail, Image as ImageIcon,
-  Bot, ShieldCheck, Search, ChevronDown,
+  Bot, ShieldCheck, Search, ChevronDown, Home, Globe,
 } from 'lucide-react'
 
 // Grouped nav structure: standalone items + dropdown groups
-type NavItem = { labelKey: string; view: any }
+type NavItem = { labelKey: string; view: any; url?: string | null }
 type NavGroup = { labelKey: string; children: NavItem[] }
 type NavEntry = NavItem | NavGroup
 
-const NAV: NavEntry[] = [
+// Fallback NAV (used before API loads or if API fails)
+const FALLBACK_NAV: NavEntry[] = [
   { labelKey: 'nav.beranda', view: { name: 'public' as const } },
   {
     labelKey: 'nav.tentang',
@@ -53,6 +54,22 @@ const NAV: NavEntry[] = [
   { labelKey: 'nav.kontak', view: { name: 'contact' as const } },
 ]
 
+// View name mapping (API returns string, we need const object)
+const VIEW_MAP: Record<string, any> = {
+  'public': { name: 'public' },
+  'about': { name: 'about' },
+  'organization': { name: 'organization' },
+  'news-list': { name: 'news-list' },
+  'event-list': { name: 'event-list' },
+  'library': { name: 'library' },
+  'gallery': { name: 'gallery' },
+  'faq': { name: 'faq' },
+  'contact': { name: 'contact' },
+  'chat': { name: 'chat' },
+  'verify-certificate': { name: 'verify-certificate' },
+  'login': { name: 'login' },
+}
+
 function iconFor(labelKey: string) {
   switch (labelKey) {
     case 'nav.tentang': return Info
@@ -67,23 +84,61 @@ function iconFor(labelKey: string) {
   }
 }
 
+// Icon name → component mapping (for API-driven icons)
+const ICON_MAP: Record<string, any> = {
+  Home, Info, Users, FileText, Calendar, BookOpen, ImageIcon, HelpCircle, Mail,
+  Globe, Bot, ShieldCheck,
+}
+
 function isNavGroup(item: NavEntry): item is NavGroup {
   return 'children' in item
+}
+
+// Convert API menu tree to NavEntry format
+function convertApiMenuToNav(apiMenus: any[]): NavEntry[] {
+  return apiMenus.map((item) => {
+    const label = item.labelKey ? null : item.label // Use labelKey if available, else use custom label
+    if (item.children && item.children.length > 0) {
+      return {
+        labelKey: item.labelKey || item.label,
+        children: item.children.map((child: any) => ({
+          labelKey: child.labelKey || child.label,
+          view: child.isExternal ? null : (VIEW_MAP[child.view] || { name: 'public' }),
+          url: child.isExternal ? child.url : null,
+        })),
+      } as NavEntry
+    }
+    return {
+      labelKey: item.labelKey || item.label,
+      view: item.isExternal ? null : (VIEW_MAP[item.view] || { name: 'public' }),
+      url: item.isExternal ? item.url : null,
+    } as NavEntry
+  })
 }
 
 export function Header() {
   const { user, setView, logout } = useApp()
   const { t } = useTranslation()
   const [siteSettings, setSiteSettings] = React.useState<Record<string, string>>({})
+  const [navItems, setNavItems] = React.useState<NavEntry[]>(FALLBACK_NAV)
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [scrolled, setScrolled] = React.useState(false)
   const [searchOpen, setSearchOpen] = React.useState(false)
 
-  // Load site settings on mount
+  // Load site settings + menu on mount
   React.useEffect(() => {
     fetch('/api/settings', { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => setSiteSettings(d.settings || {}))
+      .catch(() => {})
+    fetch('/api/menu', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.menus && d.menus.length > 0) {
+          const navs = convertApiMenuToNav(d.menus)
+          if (navs.length > 0) setNavItems(navs)
+        }
+      })
       .catch(() => {})
   }, [])
 
@@ -153,7 +208,7 @@ export function Header() {
         </button>
 
         <nav className="hidden items-center gap-0.5 lg:flex">
-          {NAV.map((item) => {
+          {navItems.map((item) => {
             if (isNavGroup(item)) {
               // Dropdown group with hover
               return (
@@ -161,7 +216,7 @@ export function Header() {
                   <button
                     className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:text-navy hover:bg-accent/40 rounded-md"
                   >
-                    {t(item.labelKey)}
+                    {t(item.labelKey, item.labelKey)}
                     <ChevronDown className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all" />
                   </button>
                   {/* Hover dropdown */}
@@ -169,14 +224,24 @@ export function Header() {
                     <div className="rounded-xl border border-border bg-card shadow-premium overflow-hidden p-1.5">
                       {item.children.map((child) => {
                         const Icon = iconFor(child.labelKey)
+                        if (child.url) {
+                          return (
+                            <a key={child.labelKey} href={child.url} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-sm text-foreground/70 hover:bg-accent hover:text-navy dark:hover:text-white transition-colors text-left"
+                            >
+                              <Icon className="h-4 w-4 text-gold flex-shrink-0" />
+                              {t(child.labelKey, child.labelKey)}
+                            </a>
+                          )
+                        }
                         return (
                           <button
                             key={child.labelKey}
-                            onClick={() => setView(child.view)}
+                            onClick={() => child.view && setView(child.view)}
                             className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-sm text-foreground/70 hover:bg-accent hover:text-navy dark:hover:text-white transition-colors text-left"
                           >
                             <Icon className="h-4 w-4 text-gold flex-shrink-0" />
-                            {t(child.labelKey)}
+                            {t(child.labelKey, child.labelKey)}
                           </button>
                         )
                       })}
@@ -185,14 +250,23 @@ export function Header() {
                 </div>
               )
             }
-            // Standalone item
+            // Standalone item — could be internal view or external link
+            if (item.url) {
+              return (
+                <a key={item.labelKey} href={item.url} target="_blank" rel="noopener noreferrer"
+                  className="px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:text-navy hover:bg-accent/40 rounded-md"
+                >
+                  {t(item.labelKey, item.labelKey)}
+                </a>
+              )
+            }
             return (
               <button
                 key={item.labelKey}
-                onClick={() => setView(item.view)}
+                onClick={() => item.view && setView(item.view)}
                 className="px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:text-navy hover:bg-accent/40 rounded-md"
               >
-                {t(item.labelKey)}
+                {t(item.labelKey, item.labelKey)}
               </button>
             )
           })}
@@ -303,7 +377,7 @@ export function Header() {
                 <div className="px-2 mb-3">
                   <IAALogo withText />
                 </div>
-                {NAV.map((item) => {
+                {navItems.map((item) => {
                   if (isNavGroup(item)) {
                     return (
                       <div key={item.labelKey} className="space-y-1">

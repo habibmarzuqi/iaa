@@ -582,11 +582,35 @@ model SiteSetting {
   id          String   @id @default(cuid())
   key         String   @unique
   value       String?
-  type        String   @default("text")  // text | textarea | image | color | boolean
-  category    String   @default("general") // general | branding | contact | social | seo
+  type        String   @default("text")
+  category    String   @default("general")
   updatedAt   DateTime @updatedAt
   updatedById String?
   updatedBy   User?    @relation("SiteSettingUpdater", fields: [updatedById], references: [id])
+}
+
+// ============ MENU MANAGEMENT ============
+
+model MenuConfig {
+  id          String   @id @default(cuid())
+  label       String                        // Display label (e.g. "Beranda")
+  labelKey    String?                       // i18n key (e.g. "nav.beranda")
+  view        String?                       // Internal view name (e.g. "public", "news-list")
+  url         String?                       // External URL (if isExternal)
+  icon        String?                       // Lucide icon name (e.g. "Info", "Users")
+  parentId    String?                       // Parent menu ID (null = top-level)
+  parent      MenuConfig? @relation("MenuChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children    MenuConfig[] @relation("MenuChildren")
+  order       Int      @default(0)
+  isVisible   Boolean  @default(true)
+  isExternal  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([parentId])
+  @@index([order])
+  @@index([isVisible])
 }
 
 

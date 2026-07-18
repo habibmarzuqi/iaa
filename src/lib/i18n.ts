@@ -270,6 +270,7 @@ const ID: Dict = {
   'admin.reports': 'Laporan',
   'admin.settings': 'Pengaturan Sistem',
   'admin.siteSettings': 'Pengaturan Situs',
+  'admin.menu': 'Manajemen Menu',
   'admin.viewWebsite': 'Lihat Website',
   'admin.logout': 'Keluar',
 
@@ -590,6 +591,7 @@ const EN: Dict = {
   'admin.reports': 'Reports',
   'admin.settings': 'System Settings',
   'admin.siteSettings': 'Site Settings',
+  'admin.menu': 'Menu Manager',
   'admin.viewWebsite': 'View Website',
   'admin.logout': 'Sign Out',
 
