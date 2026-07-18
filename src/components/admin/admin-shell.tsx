@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import {
   LayoutDashboard, Archive, Award, CalendarCheck, FileBarChart,
-  LogOut, ChevronRight, BookOpen, Settings, Globe, FolderOpen, Palette,
+  LogOut, ChevronRight, BookOpen, Settings, Globe, FolderOpen, Palette, ListOrdered,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/i18n'
@@ -23,6 +23,7 @@ interface AdminNavItem {
 const NAV_ITEMS: AdminNavItem[] = [
   { key: 'dashboard', labelKey: 'admin.dashboard', icon: LayoutDashboard, view: { name: 'admin-dashboard' } },
   { key: 'cms', labelKey: 'admin.cms', icon: Globe, view: { name: 'admin-cms' } },
+  { key: 'menu', labelKey: 'admin.menu', icon: ListOrdered, view: { name: 'admin-menu' } },
   { key: 'files', labelKey: 'admin.files', icon: FolderOpen, view: { name: 'admin-files' } },
   { key: 'site-settings', labelKey: 'admin.siteSettings', icon: Palette, view: { name: 'admin-site-settings' } },
   { key: 'archives', labelKey: 'admin.archives', icon: Archive, view: { name: 'admin-archives' } },

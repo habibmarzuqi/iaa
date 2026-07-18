@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import {
   Tabs, TabsList, TabsTrigger, TabsContent,
 } from '@/components/ui/tabs'
@@ -16,7 +17,7 @@ import {
   Palette, Globe, Phone, Mail, MapPin, Share2, Search,
   Save, Loader2, Upload, Check, Image as ImageIcon, Clock,
   Facebook, Instagram, Youtube, Linkedin, Twitter, FileImage,
-  Building2, Hash, AlertCircle,
+  Building2, Hash, AlertCircle, ToggleLeft, Bot, Languages, Moon, ShieldCheck,
 } from 'lucide-react'
 import { useApp } from '@/lib/store'
 import { toast } from 'sonner'
@@ -80,7 +81,20 @@ const SETTING_GROUPS = {
       { key: 'seo.googleAnalyticsId', label: 'Google Analytics ID', type: 'text', placeholder: 'G-XXXXXXXXXX', hint: 'Tracking ID untuk analytics' },
     ],
   },
+  header: {
+    label: 'Fitur Header',
+    icon: ToggleLeft,
+    fields: [
+      { key: 'header.showSearch', label: 'Pencarian Global (Search)', type: 'toggle', hint: 'Tombol pencarian dengan shortcut Ctrl+K di header', toggleIcon: 'Search' },
+      { key: 'header.showAIChatbot', label: 'AI Chatbot Kearsipan', type: 'toggle', hint: 'Tombol akses cepat ke asisten AI di header', toggleIcon: 'Bot' },
+      { key: 'header.showVerifyButton', label: 'Verifikasi Sertifikat', type: 'toggle', hint: 'Tombol akses cepat ke halaman verifikasi sertifikat', toggleIcon: 'ShieldCheck' },
+      { key: 'header.showLanguageSwitcher', label: 'Pengalih Bahasa (ID/EN)', type: 'toggle', hint: 'Dropdown untuk beralih bahasa Indonesia/English', toggleIcon: 'Languages' },
+      { key: 'header.showThemeToggle', label: 'Mode Gelap/Terang', type: 'toggle', hint: 'Tombol untuk beralih dark/light mode', toggleIcon: 'Moon' },
+    ],
+  },
 }
+
+const TOGGLE_ICONS: Record<string, any> = { Search, Bot, ShieldCheck, Languages, Moon }
 
 const SOCIAL_ICONS: Record<string, any> = { facebook: Facebook, instagram: Instagram, youtube: Youtube, linkedin: Linkedin, twitter: Twitter }
 
@@ -199,6 +213,33 @@ export function AdminSiteSettingsView() {
             />
           </div>
           {field.hint && <p className="text-[10px] text-muted-foreground">{field.hint}</p>}
+        </div>
+      )
+    }
+
+    if (field.type === 'toggle') {
+      const isEnabled = value === 'true' || value === true
+      const ToggleIcon = field.toggleIcon ? TOGGLE_ICONS[field.toggleIcon] : null
+      return (
+        <div key={field.key} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-4">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            {ToggleIcon && (
+              <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                <ToggleIcon className="h-5 w-5" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <Label className="text-sm font-medium">{field.label}</Label>
+                {isDirty && <Badge variant="outline" className="text-[9px] border-gold/40 text-gold bg-gold/5">modified</Badge>}
+              </div>
+              {field.hint && <p className="text-[11px] text-muted-foreground mt-0.5">{field.hint}</p>}
+            </div>
+          </div>
+          <Switch
+            checked={isEnabled}
+            onCheckedChange={(checked) => setSettings((s) => ({ ...s, [field.key]: String(checked) }))}
+          />
         </div>
       )
     }

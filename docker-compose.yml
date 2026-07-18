@@ -1,0 +1,72 @@
+# ============================================
+# IAA Digital - Docker Compose
+# ============================================
+# Jalankan: docker-compose up -d
+# Akses: http://localhost:3000 atau https://iaa.monas.web.id
+
+version: '3.8'
+
+services:
+  # ---- MySQL Database ----
+  db:
+    image: mysql:8
+    container_name: iaa-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password_ganti_ini
+      MYSQL_DATABASE: iaa_digital
+      MYSQL_USER: iaa_user
+      MYSQL_PASSWORD: ganti_password_kuat_ini
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - iaa-network
+
+  # ---- Next.js Application ----
+  app:
+    build: .
+    container_name: iaa-app
+    restart: always
+    depends_on:
+      - db
+    environment:
+      # Ganti password sesuai dengan MySQL di atas
+      DATABASE_URL: "mysql://iaa_user:ganti_password_kuat_ini@db:3306/iaa_digital"
+      NODE_ENV: "production"
+      NEXTAUTH_SECRET: "ganti-dengan-random-string-32-karakter"
+      CRON_SECRET: "ganti-dengan-random-cron-secret"
+      NEXT_PUBLIC_SITE_URL: "https://iaa.monas.web.id"
+    volumes:
+      # Persist file uploads
+      - ./public/uploads:/app/public/uploads
+    ports:
+      - "3000:3000"
+    networks:
+      - iaa-network
+
+  # ---- Nginx Reverse Proxy ----
+  nginx:
+    image: nginx:alpine
+    container_name: iaa-nginx
+    restart: always
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./public/uploads:/var/www/uploads:ro
+      # Untuk SSL (Let's Encrypt):
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+    networks:
+      - iaa-network
+
+volumes:
+  mysql_data:
+
+networks:
+  iaa-network:
+    driver: bridge

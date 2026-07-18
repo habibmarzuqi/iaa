@@ -31,6 +31,7 @@ const ID: Dict = {
   // ===== HEADER =====
   'nav.beranda': 'Beranda',
   'nav.tentang': 'Tentang',
+  'nav.tentangGroup': 'Tentang',
   'nav.pengurus': 'Pengurus',
   'nav.informasi': 'Informasi',
   'nav.berita': 'Berita',
@@ -270,6 +271,7 @@ const ID: Dict = {
   'admin.reports': 'Laporan',
   'admin.settings': 'Pengaturan Sistem',
   'admin.siteSettings': 'Pengaturan Situs',
+  'admin.menu': 'Manajemen Menu',
   'admin.viewWebsite': 'Lihat Website',
   'admin.logout': 'Keluar',
 
@@ -351,6 +353,7 @@ const EN: Dict = {
   // ===== HEADER =====
   'nav.beranda': 'Home',
   'nav.tentang': 'About',
+  'nav.tentangGroup': 'About',
   'nav.pengurus': 'Officers',
   'nav.informasi': 'Information',
   'nav.berita': 'News',
@@ -590,6 +593,7 @@ const EN: Dict = {
   'admin.reports': 'Reports',
   'admin.settings': 'System Settings',
   'admin.siteSettings': 'Site Settings',
+  'admin.menu': 'Menu Manager',
   'admin.viewWebsite': 'View Website',
   'admin.logout': 'Sign Out',
 
