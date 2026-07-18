@@ -1,0 +1,616 @@
+// IAA Digital - Ikatan Arsiparis ANRI
+// Prisma schema for organization management platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ AUTH & USERS ============
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  name          String
+  role          Role     @default(ANGGOTA)
+  avatar        String?
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  member        Member?
+  articles      Article[]
+  events        Event[]      @relation("EventOrganizer")
+  certificates  Certificate[] // certificates issued BY this user
+  auditLogs     AuditLog[]
+  archivesUploaded      Archive[]      @relation("ArchiveUploader")
+  archiveVersions       ArchiveVersion[] @relation("ArchiveVersionUploader")
+  archiveAccesses       ArchiveAccess[]   @relation("ArchiveAccessUser")
+  chatConversations     ChatConversation[] @relation("ChatConversationUser")
+  notifications         Notification[]   @relation("NotificationUser")
+  oauthAccounts         OAuthAccount[]   @relation("OAuthAccountUser")
+  backupsTriggered      BackupHistory[]  @relation("BackupTriggeredBy")
+  articleRevisions      ArticleRevision[] @relation("ArticleRevisionEditor")
+  mediaAssetsUploaded   MediaAsset[]     @relation("MediaAssetUploader")
+  siteSettingsUpdated   SiteSetting[]    @relation("SiteSettingUpdater")
+
+  @@index([role])
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMINISTRATOR
+  PENGURUS
+  ANGGOTA
+}
+
+// ============ MEMBERS ============
+
+model Member {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberNumber    String   @unique
+  nip             String?
+  fullName        String
+  photo           String?
+  workUnit        String?
+  position        String?
+  arsiparisLevel  ArsiparisLevel?
+  education       String?
+  trainingHistory String?  // JSON string of training records
+  certificationHistory String? // JSON string
+  status          MemberStatus @default(AKTIF)
+  joinDate        DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  registrations   Registration[]
+  certificates    Certificate[]
+
+  @@index([status])
+  @@index([arsiparisLevel])
+}
+
+enum ArsiparisLevel {
+  PEMULA
+  MUDA
+  MADYA
+  UTAMA
+}
+
+enum MemberStatus {
+  AKTIF
+  TIDAK_AKTIF
+  PENSIUN
+  MENINGGAL
+}
+
+// ============ ARTICLES / BERITA ============
+
+model Article {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  excerpt       String
+  content       String
+  featuredImage String?
+  category      String   @default("Umum")
+  tags          String?  // comma-separated
+  isFeatured    Boolean  @default(false)
+  isPublished   Boolean  @default(true)
+  publishStatus PublishStatus @default(PUBLISHED)
+  scheduledAt   DateTime?   // when to auto-publish (if SCHEDULED)
+  publishedAt   DateTime @default(now())
+  viewCount     Int      @default(0)
+  authorId      String
+  author        User     @relation(fields: [authorId], references: [id])
+  // SEO metadata (Phase 4)
+  metaDescription String?  // custom meta description (default: excerpt)
+  ogTitle         String?  // custom OpenGraph title (default: title)
+  ogImage         String?  // custom OG image URL (default: featuredImage)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  revisions    ArticleRevision[]
+
+  @@index([isPublished, publishedAt])
+  @@index([category])
+  @@index([publishStatus])
+}
+
+enum PublishStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+model ArticleRevision {
+  id          String   @id @default(cuid())
+  articleId   String
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  version     Int
+  title       String
+  excerpt     String
+  content     String
+  editedById  String
+  editedBy    User     @relation("ArticleRevisionEditor", fields: [editedById], references: [id])
+  changeLog   String?  // optional note about what changed
+  createdAt   DateTime @default(now())
+
+  @@unique([articleId, version])
+  @@index([articleId])
+}
+
+// ============ MEDIA LIBRARY (Phase 4) ============
+
+model MediaAsset {
+  id          String   @id @default(cuid())
+  filename    String   // original filename
+  storedName  String   // unique stored filename
+  url         String   // public URL (/uploads/xxx)
+  mimeType    String
+  size        Int      // bytes
+  width       Int?
+  height      Int?
+  alt         String?  // alt text
+  caption     String?
+  // Image optimization variants (Phase 4 enrichment)
+  thumbUrl    String?  // 200x200 thumbnail
+  mediumUrl   String?  // 800px width medium
+  largeUrl    String?  // 1200px width large
+  uploadedById String
+  uploadedBy  User     @relation("MediaAssetUploader", fields: [uploadedById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([uploadedById])
+  @@index([mimeType])
+}
+
+// ============ EVENTS ============
+
+model Event {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  description   String
+  eventType     EventType
+  coverImage    String?
+  location      String
+  startDate     DateTime
+  endDate       DateTime
+  quota         Int      @default(100)
+  registeredCount Int    @default(0)
+  isPublished   Boolean  @default(true)
+  isRegistrationOpen Boolean @default(true)
+  organizerId   String
+  organizer     User     @relation("EventOrganizer", fields: [organizerId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  registrations Registration[]
+  certificates  Certificate[]
+
+  @@index([startDate])
+  @@index([eventType])
+}
+
+enum EventType {
+  SEMINAR
+  WORKSHOP
+  WEBINAR
+  RAPAT
+  PELATIHAN
+  LOMBA
+}
+
+// ============ REGISTRATIONS ============
+
+model Registration {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  memberId    String
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  status      RegistrationStatus @default(PENDING)
+  checkedIn   Boolean  @default(false)
+  checkedInAt DateTime?
+  registeredAt DateTime @default(now())
+
+  @@unique([eventId, memberId])
+  @@index([status])
+}
+
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WAITING_LIST
+  CANCELLED
+}
+
+// ============ CERTIFICATES ============
+
+model Certificate {
+  id              String   @id @default(cuid())
+  certificateNumber String @unique
+  eventId         String?
+  event           Event?   @relation(fields: [eventId], references: [id])
+  memberId        String
+  member          Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  issuedById      String
+  issuedBy        User     @relation(fields: [issuedById], references: [id])
+  title           String
+  description     String?
+  template        String   @default("default")
+  issuedAt        DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@index([memberId])
+  @@index([eventId])
+}
+
+// ============ DIGITAL LIBRARY ============
+
+model LibraryItem {
+  id            String   @id @default(cuid())
+  title         String
+  slug          String   @unique
+  description   String
+  category      LibraryCategory
+  author        String?
+  publisher     String?
+  year          Int?
+  coverImage    String?
+  fileUrl       String?
+  fileSize      Int?
+  pages         Int?
+  tags          String?
+  downloadCount Int      @default(0)
+  viewCount     Int      @default(0)
+  isPublished   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([category])
+  @@index([isPublished])
+}
+
+enum LibraryCategory {
+  BUKU
+  EBOOK
+  JURNAL
+  PEDOMAN
+  REGULASI
+  SOP
+  TEMPLATE
+  PRESENTASI
+  MAJALAH
+  VIDEO
+  AUDIO
+}
+
+// ============ GALLERY ============
+
+model GalleryAlbum {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  coverImage  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  photos      GalleryPhoto[]
+}
+
+model GalleryPhoto {
+  id          String   @id @default(cuid())
+  albumId     String
+  album       GalleryAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  title       String?
+  url         String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([albumId])
+  @@index([albumId, order])
+}
+
+// ============ ANNOUNCEMENTS ============
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  type        AnnouncementType @default(BANNER)
+  isPinned    Boolean  @default(false)
+  isPopup     Boolean  @default(false)
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum AnnouncementType {
+  BANNER
+  POPUP
+  RUNNING_TEXT
+  PINNED
+}
+
+// ============ ORGANIZATION STRUCTURE ============
+
+model OrganizationMember {
+  id          String   @id @default(cuid())
+  name        String
+  position    String
+  photo       String?
+  bio         String?
+  order       Int      @default(0)
+  category    String   @default("Pengurus Pusat") // e.g. "Ketua Umum", "Sekretaris", etc.
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category, isActive])
+}
+
+// ============ AUDIT LOG ============
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String
+  description String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ============ CONTACT MESSAGES ============
+
+model ContactMessage {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  phone       String?
+  subject     String
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([isRead])
+}
+
+// ============ ORGANIZATION ARCHIVE (Modul Arsip Digital Organisasi) ============
+
+model Archive {
+  id              String   @id @default(cuid())
+  archiveNumber   String   @unique             // e.g. "ARC-SK-2026-001"
+  title           String
+  description     String?
+  category        ArchiveCategory
+  documentDate    DateTime                     // tanggal dokumen asli
+  source          String?                      // asal dokumen / pihak pengirim
+  destination     String?                      // tujuan dokumen (untuk surat keluar)
+  classification  Classification @default(PUBLIK)
+  accessLevel     AccessLevel    @default(PUBLIK)
+  tags            String?                      // comma-separated
+  currentVersion  Int            @default(1)
+  isPinned        Boolean        @default(false)
+  uploadedById    String
+  uploadedBy      User           @relation("ArchiveUploader", fields: [uploadedById], references: [id])
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  versions        ArchiveVersion[]
+  accesses        ArchiveAccess[]
+
+  @@index([category])
+  @@index([classification])
+  @@index([accessLevel])
+  @@index([documentDate])
+}
+
+enum ArchiveCategory {
+  SURAT_MASUK
+  SURAT_KELUAR
+  DOKUMEN_RAPAT
+  SK
+  AD_ART
+  MOU
+  DOKUMEN_ORGANISASI
+  FOTO
+  VIDEO
+}
+
+enum Classification {
+  PUBLIK
+  INTERNAL
+  RAHASIA
+  SANGAT_RAHASIA
+}
+
+enum AccessLevel {
+  PUBLIK          // semua orang bisa lihat
+  ANGGOTA         // login sebagai anggota
+  PENGURUS        // pengurus+
+  ADMIN           // administrator+
+  SUPER_ADMIN     // super admin only
+}
+
+model ArchiveVersion {
+  id            String   @id @default(cuid())
+  archiveId     String
+  archive       Archive  @relation(fields: [archiveId], references: [id], onDelete: Cascade)
+  version       Int
+  fileUrl       String?
+  fileName      String?
+  fileSize      Int?
+  mimeType      String?
+  changeLog     String?
+  uploadedById  String
+  uploadedBy    User     @relation("ArchiveVersionUploader", fields: [uploadedById], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@unique([archiveId, version])
+  @@index([archiveId])
+}
+
+model ArchiveAccess {
+  id          String   @id @default(cuid())
+  archiveId   String
+  archive     Archive  @relation(fields: [archiveId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation("ArchiveAccessUser", fields: [userId], references: [id])
+  action      String   // VIEW, DOWNLOAD, UPLOAD, EDIT, DELETE
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([archiveId])
+  @@index([userId])
+}
+
+// ============ AI CHAT CONVERSATIONS ============
+
+model ChatConversation {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation("ChatConversationUser", fields: [userId], references: [id])
+  guestName   String?
+  title       String   @default("Percakapan Baru")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages    ChatMessage[]
+
+  @@index([userId])
+}
+
+model ChatMessage {
+  id            String   @id @default(cuid())
+  conversationId String
+  conversation  ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role          String   // "user" | "assistant"
+  content       String
+  createdAt     DateTime @default(now())
+
+  @@index([conversationId])
+}
+
+// ============ NOTIFICATIONS (Phase 3) ============
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String?                      // null = broadcast ke semua user
+  user        User?    @relation("NotificationUser", fields: [userId], references: [id], onDelete: Cascade)
+  type        NotificationType
+  title       String
+  message     String
+  link        String?                      // optional route/URL
+  data        String?                      // JSON string for additional data
+  isRead      Boolean  @default(false)
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  SYSTEM
+  EVENT_REMINDER
+  REGISTRATION_STATUS
+  CERTIFICATE_ISSUED
+  ANNOUNCEMENT
+  MESSAGE
+}
+
+// ============ OAUTH ACCOUNTS (Phase 3) ============
+
+model OAuthAccount {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation("OAuthAccountUser", fields: [userId], references: [id], onDelete: Cascade)
+  provider      String                       // "google" | "microsoft" | "facebook"
+  providerAccountId String                   // unique ID from provider
+  email         String?
+  name          String?
+  avatar        String?
+  accessToken   String?
+  refreshToken  String?
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// ============ BACKUP HISTORY (Phase 3) ============
+
+model BackupHistory {
+  id          String   @id @default(cuid())
+  type        String                       // "manual" | "scheduled"
+  status      String                       // "success" | "failed" | "in_progress"
+  fileName    String
+  fileSize    Int?
+  recordCount Int?
+  triggeredById String?
+  triggeredBy User?    @relation("BackupTriggeredBy", fields: [triggeredById], references: [id])
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([status])
+}
+
+// ============ SITE SETTINGS (Phase: Public Website Config) ============
+
+model SiteSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String?
+  type        String   @default("text")
+  category    String   @default("general")
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+  updatedBy   User?    @relation("SiteSettingUpdater", fields: [updatedById], references: [id])
+}
+
+// ============ MENU MANAGEMENT ============
+
+model MenuConfig {
+  id          String   @id @default(cuid())
+  label       String                        // Display label (e.g. "Beranda")
+  labelKey    String?                       // i18n key (e.g. "nav.beranda")
+  view        String?                       // Internal view name (e.g. "public", "news-list")
+  url         String?                       // External URL (if isExternal)
+  icon        String?                       // Lucide icon name (e.g. "Info", "Users")
+  parentId    String?                       // Parent menu ID (null = top-level)
+  parent      MenuConfig? @relation("MenuChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children    MenuConfig[] @relation("MenuChildren")
+  order       Int      @default(0)
+  isVisible   Boolean  @default(true)
+  isExternal  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([parentId])
+  @@index([order])
+  @@index([isVisible])
+}
+
+
