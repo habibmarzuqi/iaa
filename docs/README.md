@@ -17,6 +17,7 @@ Dokumentasi lengkap untuk platform **IAA Digital — Ikatan Arsiparis ANRI**.
 | 09 | [Deployment ke Vercel](./09-deployment-vercel.md) | Tutorial lengkap deploy ke Vercel + MySQL eksternal |
 | 10 | [Upload ke GitHub](./10-upload-github.md) | Cara upload proyek ke GitHub repository |
 | 11 | [Deployment ke cPanel](./11-deployment-cpanel.md) | Tutorial deploy ke cPanel shared hosting |
+| 12 | [cPanel via Git Clone](./12-deployment-cpanel-git.md) | Deploy cPanel langsung dari GitHub via Terminal |
 
 ## Quick Links
 
