@@ -146,6 +146,13 @@ export function Header() {
   const siteTagline = siteSettings['site.tagline'] || 'Ikatan Arsiparis ANRI'
   const logoUrl = siteSettings['branding.logoUrl']
 
+  // Feature toggles from site settings (default: true if not yet loaded)
+  const showSearch = siteSettings['header.showSearch'] !== 'false'
+  const showAIChatbot = siteSettings['header.showAIChatbot'] !== 'false'
+  const showLanguageSwitcher = siteSettings['header.showLanguageSwitcher'] !== 'false'
+  const showThemeToggle = siteSettings['header.showThemeToggle'] !== 'false'
+  const showVerifyButton = siteSettings['header.showVerifyButton'] !== 'false'
+
   // Keyboard shortcut: Cmd/Ctrl+K
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -274,41 +281,47 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           {/* Search button */}
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="hidden md:flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:border-gold/40 hover:text-navy dark:hover:text-white transition-colors"
-            title="Pencarian global (Ctrl+K)"
-          >
-            <Search className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">{t('nav.search')}</span>
-            <kbd className="hidden lg:inline-flex h-4 items-center gap-0.5 rounded border border-border bg-muted px-1 text-[9px] font-mono">
-              ⌘K
-            </kbd>
-          </button>
+          {showSearch && (
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="hidden md:flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:border-gold/40 hover:text-navy dark:hover:text-white transition-colors"
+              title="Pencarian global (Ctrl+K)"
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">{t('nav.search')}</span>
+              <kbd className="hidden lg:inline-flex h-4 items-center gap-0.5 rounded border border-border bg-muted px-1 text-[9px] font-mono">
+                ⌘K
+              </kbd>
+            </button>
+          )}
 
           {/* AI Chatbot quick access */}
-          <button
-            onClick={() => setView({ name: 'chat' })}
-            className="hidden md:flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs font-medium text-gold hover:bg-gold/20 transition-colors"
-            title="Asisten AI Kearsipan"
-          >
-            <Bot className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">{t('nav.chatbot')}</span>
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          </button>
+          {showAIChatbot && (
+            <button
+              onClick={() => setView({ name: 'chat' })}
+              className="hidden md:flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs font-medium text-gold hover:bg-gold/20 transition-colors"
+              title="Asisten AI Kearsipan"
+            >
+              <Bot className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">{t('nav.chatbot')}</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            </button>
+          )}
 
           {/* Verify cert quick access */}
-          <button
-            onClick={() => setView({ name: 'verify-certificate' })}
-            className="hidden md:flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground/70 hover:border-gold/40 hover:text-navy dark:hover:text-white transition-colors"
-            title="Verifikasi Sertifikat"
-          >
-            <ShieldCheck className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">{t('nav.verify')}</span>
-          </button>
+          {showVerifyButton && (
+            <button
+              onClick={() => setView({ name: 'verify-certificate' })}
+              className="hidden md:flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground/70 hover:border-gold/40 hover:text-navy dark:hover:text-white transition-colors"
+              title="Verifikasi Sertifikat"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">{t('nav.verify')}</span>
+            </button>
+          )}
 
-          <LanguageSwitcher />
-          <ThemeToggle />
+          {showLanguageSwitcher && <LanguageSwitcher />}
+          {showThemeToggle && <ThemeToggle />}
 
           {user && <NotificationBell />}
 
