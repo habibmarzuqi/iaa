@@ -6,6 +6,10 @@ import { AdminShell } from '@/components/admin/admin-shell'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -14,13 +18,17 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet'
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
+import {
   Tabs, TabsContent, TabsList, TabsTrigger,
 } from '@/components/ui/tabs'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   CalendarCheck, Users, Clock, CheckCircle2, XCircle, UserPlus,
   Search, Calendar, MapPin, QrCode, Check, Filter, ListChecks, UserCheck,
-  AlertCircle,
+  AlertCircle, Plus, Edit2, Trash2, Loader2, Save, Upload, X,
+  Image as ImageIcon, Link2, Eye, EyeOff,
 } from 'lucide-react'
 import { formatDateTime, formatDate, timeAgo } from '@/lib/helpers'
 import { toast } from 'sonner'
@@ -36,8 +44,20 @@ interface RegItem {
 }
 
 interface EventItem {
-  id: string; title: string; eventType: string; startDate: string; location: string
-  quota: number; registeredCount: number; isRegistrationOpen: boolean
+  id: string
+  title: string
+  slug: string
+  description: string
+  eventType: string
+  coverImage: string | null
+  location: string
+  startDate: string
+  endDate: string
+  quota: number
+  registeredCount: number
+  isPublished: boolean
+  isRegistrationOpen: boolean
+  organizer?: { name: string } | null
 }
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
@@ -48,6 +68,15 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   CANCELLED: { label: 'Dibatalkan', color: 'border-slate-400/40 text-slate-600 bg-slate-50 dark:bg-slate-900/20' },
 }
 
+const EVENT_TYPES = [
+  { value: 'SEMINAR', label: 'Seminar' },
+  { value: 'WORKSHOP', label: 'Workshop' },
+  { value: 'WEBINAR', label: 'Webinar' },
+  { value: 'RAPAT', label: 'Rapat' },
+  { value: 'PELATIHAN', label: 'Pelatihan' },
+  { value: 'LOMBA', label: 'Lomba' },
+]
+
 export function AdminEventsView() {
   const [events, setEvents] = React.useState<EventItem[]>([])
   const [regs, setRegs] = React.useState<RegItem[]>([])
@@ -56,11 +85,13 @@ export function AdminEventsView() {
   const [filterStatus, setFilterStatus] = React.useState('ALL')
   const [selectedReg, setSelectedReg] = React.useState<RegItem | null>(null)
   const [detailOpen, setDetailOpen] = React.useState(false)
+  const [editingEvent, setEditingEvent] = React.useState<EventItem | null>(null)
+  const [eventFormOpen, setEventFormOpen] = React.useState(false)
 
   const load = React.useCallback(() => {
     setLoading(true)
     Promise.all([
-      fetch('/api/events?limit=50').then((r) => r.json()),
+      fetch('/api/events?admin=true&limit=100').then((r) => r.json()),
       fetch('/api/registrations').then((r) => r.json()),
     ])
       .then(([e, r]) => {
@@ -84,10 +115,10 @@ export function AdminEventsView() {
   const waitingCount = regs.filter((r) => r.status === 'WAITING_LIST').length
 
   const handleAction = async (reg: RegItem, action: 'approve' | 'reject' | 'checkin' | 'cancel') => {
-    const actionMap = {
+    const actionMap: Record<string, { status?: string; label: string }> = {
       approve: { status: 'APPROVED', label: 'menyetujui' },
       reject: { status: 'REJECTED', label: 'menolak' },
-      checkin: { action: 'checkin', label: 'check-in' },
+      checkin: { label: 'check-in' },
       cancel: { status: 'CANCELLED', label: 'membatalkan' },
     }
     const a = actionMap[action]
@@ -113,11 +144,30 @@ export function AdminEventsView() {
     }
   }
 
+  const removeEvent = async (e: EventItem) => {
+    if (!confirm(`Hapus kegiatan "${e.title}"?\n\nSemua pendaftaran peserta terkait juga akan dihapus permanen.`)) return
+    try {
+      const res = await fetch(`/api/events?id=${e.id}`, { method: 'DELETE' })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal menghapus'); return }
+      toast.success(`Kegiatan "${e.title}" dihapus`)
+      load()
+    } catch { toast.error('Terjadi kesalahan') }
+  }
+
+  const openCreateEvent = () => { setEditingEvent(null); setEventFormOpen(true) }
+  const openEditEvent = (e: EventItem) => { setEditingEvent(e); setEventFormOpen(true) }
+
   return (
     <AdminShell
       activeKey="events"
       title="Event & Registrasi"
-      subtitle="Kelola pendaftaran kegiatan, approval peserta, dan check-in QR"
+      subtitle="Kelola kegiatan (CRUD), pendaftaran peserta, approval, dan check-in QR"
+      actions={
+        <Button onClick={openCreateEvent} className="bg-navy-gradient">
+          <Plus className="mr-2 h-4 w-4" /> Tambah Kegiatan
+        </Button>
+      }
     >
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -272,45 +322,89 @@ export function AdminEventsView() {
 
         {/* Events tab */}
         <TabsContent value="events">
-          <div className="grid gap-4 md:grid-cols-2">
-            {events.map((e) => {
-              const eventRegs = regs.filter((r) => r.event.id === e.id)
-              const pending = eventRegs.filter((r) => r.status === 'PENDING').length
-              const checkedIn = eventRegs.filter((r) => r.checkedIn).length
-              const pct = Math.min(100, Math.round((e.registeredCount / e.quota) * 100))
-              return (
-                <Card key={e.id}>
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between gap-2 mb-3">
-                      <div>
-                        <Badge variant="outline" className="text-[10px] mb-1">{e.eventType}</Badge>
-                        <h3 className="font-semibold text-navy dark:text-white line-clamp-1">{e.title}</h3>
-                        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
-                          <Calendar className="h-3 w-3" /> {formatDate(e.startDate)}
+          {loading ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-48 rounded-lg bg-muted animate-pulse" />)}
+            </div>
+          ) : events.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <CalendarCheck className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground mb-3">Belum ada kegiatan. Buat kegiatan pertama Anda.</p>
+                <Button onClick={openCreateEvent} className="bg-navy-gradient">
+                  <Plus className="mr-2 h-4 w-4" /> Tambah Kegiatan
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {events.map((e) => {
+                const eventRegs = regs.filter((r) => r.event.id === e.id)
+                const pending = eventRegs.filter((r) => r.status === 'PENDING').length
+                const checkedIn = eventRegs.filter((r) => r.checkedIn).length
+                const pct = Math.min(100, Math.round((e.registeredCount / Math.max(e.quota, 1)) * 100))
+                return (
+                  <Card key={e.id} className="overflow-hidden">
+                    {e.coverImage && (
+                      <div className="h-32 w-full overflow-hidden bg-muted">
+                        <img src={e.coverImage} alt={e.title} className="h-full w-full object-cover" />
+                      </div>
+                    )}
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                            <Badge variant="outline" className="text-[10px]">{e.eventType}</Badge>
+                            {e.isPublished ? (
+                              <Badge variant="outline" className="text-[9px] border-emerald-400/40 text-emerald-600">
+                                <Eye className="h-2.5 w-2.5 mr-1" /> Published
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[9px] border-slate-400/40 text-slate-500">
+                                <EyeOff className="h-2.5 w-2.5 mr-1" /> Draft
+                              </Badge>
+                            )}
+                            {!e.isRegistrationOpen && (
+                              <Badge variant="outline" className="text-[9px] border-red-400/40 text-red-600">Ditutup</Badge>
+                            )}
+                          </div>
+                          <h3 className="font-semibold text-navy dark:text-white line-clamp-1">{e.title}</h3>
+                          <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                            <Calendar className="h-3 w-3" /> {formatDate(e.startDate)}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground mt-1 font-mono">/{e.slug}</div>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => openEditEvent(e)} title="Edit">
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-600" onClick={() => removeEvent(e)} title="Hapus">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </div>
-                      <Button size="sm" variant="outline" onClick={() => setFilterEvent(e.id)}>
-                        <Users className="mr-1 h-3 w-3" /> {eventRegs.length}
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Kuota: {e.registeredCount}/{e.quota}</span>
-                        <span className="text-emerald-600 font-medium">{pending} pending</span>
+                      {e.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{e.description}</p>
+                      )}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Kuota: {e.registeredCount}/{e.quota}</span>
+                          <span className="text-emerald-600 font-medium">{pending} pending</span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div className="h-full bg-gradient-to-r from-blue-soft to-blue" style={{ width: `${pct}%` }} />
+                        </div>
+                        <div className="flex items-center justify-between text-xs pt-1">
+                          <span className="text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> {e.location}</span>
+                          <span className="text-gold font-medium flex items-center gap-1"><Check className="h-3 w-3" /> {checkedIn} hadir</span>
+                        </div>
                       </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                        <div className="h-full bg-gradient-to-r from-blue-soft to-blue" style={{ width: `${pct}%` }} />
-                      </div>
-                      <div className="flex items-center justify-between text-xs pt-1">
-                        <span className="text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> {e.location}</span>
-                        <span className="text-gold font-medium flex items-center gap-1"><Check className="h-3 w-3" /> {checkedIn} hadir</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </TabsContent>
 
         {/* Check-in scanner tab */}
@@ -418,9 +512,325 @@ export function AdminEventsView() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Event Form Dialog (Create/Edit) */}
+      <EventFormDialog
+        open={eventFormOpen}
+        onOpenChange={setEventFormOpen}
+        event={editingEvent}
+        onSaved={() => { setEventFormOpen(false); load() }}
+      />
     </AdminShell>
   )
 }
+
+// ============ Event Form Dialog (Create/Edit) ============
+
+function EventFormDialog({ open, onOpenChange, event, onSaved }: {
+  open: boolean
+  onOpenChange: (o: boolean) => void
+  event: EventItem | null
+  onSaved: () => void
+}) {
+  const [form, setForm] = React.useState({
+    title: '',
+    slug: '',
+    description: '',
+    eventType: 'SEMINAR',
+    coverImage: '',
+    location: '',
+    startDate: '',
+    startTime: '09:00',
+    endDate: '',
+    endTime: '12:00',
+    quota: 100,
+    isPublished: true,
+    isRegistrationOpen: true,
+  })
+  const [saving, setSaving] = React.useState(false)
+  const [uploading, setUploading] = React.useState(false)
+
+  React.useEffect(() => {
+    if (event) {
+      const sd = new Date(event.startDate)
+      const ed = new Date(event.endDate)
+      const pad = (n: number) => String(n).padStart(2, '0')
+      const toLocalDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+      const toLocalTime = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`
+      setForm({
+        title: event.title,
+        slug: event.slug,
+        description: event.description,
+        eventType: event.eventType,
+        coverImage: event.coverImage || '',
+        location: event.location,
+        startDate: toLocalDate(sd),
+        startTime: toLocalTime(sd),
+        endDate: toLocalDate(ed),
+        endTime: toLocalTime(ed),
+        quota: event.quota,
+        isPublished: event.isPublished,
+        isRegistrationOpen: event.isRegistrationOpen,
+      })
+    } else {
+      const today = new Date()
+      const pad = (n: number) => String(n).padStart(2, '0')
+      const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
+      setForm({
+        title: '', slug: '', description: '', eventType: 'SEMINAR',
+        coverImage: '', location: '',
+        startDate: todayStr, startTime: '09:00',
+        endDate: todayStr, endTime: '12:00',
+        quota: 100, isPublished: true, isRegistrationOpen: true,
+      })
+    }
+  }, [event, open])
+
+  const handleBannerUpload = async (file: File) => {
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/events-admin/upload', { method: 'POST', body: fd })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal upload banner'); return }
+      setForm((f) => ({ ...f, coverImage: d.url }))
+      toast.success('Banner terunggah')
+    } catch { toast.error('Gagal upload banner') } finally { setUploading(false) }
+  }
+
+  const submit = async () => {
+    if (!form.title || !form.description || !form.location || !form.startDate || !form.endDate) {
+      toast.error('Judul, deskripsi, lokasi, tanggal mulai & selesai wajib diisi')
+      return
+    }
+
+    const startISO = new Date(`${form.startDate}T${form.startTime}:00`).toISOString()
+    const endISO = new Date(`${form.endDate}T${form.endTime}:00`).toISOString()
+
+    if (new Date(endISO) <= new Date(startISO)) {
+      toast.error('Tanggal selesai harus setelah tanggal mulai')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const payload = {
+        title: form.title.trim(),
+        slug: form.slug.trim() || undefined,
+        description: form.description.trim(),
+        eventType: form.eventType,
+        coverImage: form.coverImage || null,
+        location: form.location.trim(),
+        startDate: startISO,
+        endDate: endISO,
+        quota: Number(form.quota) || 100,
+        isPublished: form.isPublished,
+        isRegistrationOpen: form.isRegistrationOpen,
+      }
+      const url = event ? `/api/events?id=${event.id}` : '/api/events'
+      const method = event ? 'PATCH' : 'POST'
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal menyimpan'); return }
+      toast.success(event ? 'Kegiatan diperbarui' : 'Kegiatan ditambahkan')
+      onSaved()
+    } catch { toast.error('Terjadi kesalahan') } finally { setSaving(false) }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-premium">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-navy dark:text-white">
+            <CalendarCheck className="h-5 w-5 text-gold" /> {event ? 'Edit Kegiatan' : 'Tambah Kegiatan Baru'}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          {/* Banner upload */}
+          <div className="space-y-2">
+            <Label>Banner / Cover Image</Label>
+            <div className="flex items-start gap-4">
+              <div className="h-24 w-40 rounded-lg overflow-hidden border border-border bg-muted flex-shrink-0">
+                {form.coverImage ? (
+                  <img src={form.coverImage} alt="Banner" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full grid place-items-center">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2 flex-1">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  id="event-banner-upload"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBannerUpload(f) }}
+                />
+                <label htmlFor="event-banner-upload">
+                  <Button type="button" variant="outline" size="sm" disabled={uploading} className="cursor-pointer">
+                    {uploading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-2 h-3.5 w-3.5" />}
+                    Upload Banner
+                  </Button>
+                </label>
+                <div className="flex items-center gap-2">
+                  <Link2 className="h-3 w-3 text-muted-foreground" />
+                  <Input
+                    placeholder="atau tempel URL gambar..."
+                    value={form.coverImage.startsWith('/uploads/') ? '' : form.coverImage}
+                    onChange={(e) => setForm({ ...form, coverImage: e.target.value })}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                {form.coverImage && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-600 h-7 text-xs"
+                    onClick={() => setForm({ ...form, coverImage: '' })}
+                  >
+                    <X className="h-3 w-3 mr-1" /> Hapus Banner
+                  </Button>
+                )}
+                <p className="text-[10px] text-muted-foreground">JPG/PNG/WebP/GIF/SVG, maks 5MB. Disimpan di /uploads/events/</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Judul Kegiatan *</Label>
+              <Input
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="Seminar Nasional Arsiparis 2026"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Slug (URL)</Label>
+              <Input
+                value={form.slug}
+                onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                placeholder="biarkan kosong untuk auto-generate"
+              />
+              <p className="text-[10px] text-muted-foreground">Contoh: seminar-arsiparis-2026</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Jenis Kegiatan *</Label>
+              <Select value={form.eventType} onValueChange={(v) => setForm({ ...form, eventType: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {EVENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Deskripsi *</Label>
+              <Textarea
+                rows={3}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder="Deskripsi singkat kegiatan, tujuan, narasumber, dll."
+              />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Lokasi *</Label>
+              <Input
+                value={form.location}
+                onChange={(e) => setForm({ ...form, location: e.target.value })}
+                placeholder="Aula IAA ANRI, Jakarta / Zoom / Google Meet"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tanggal Mulai *</Label>
+              <Input
+                type="date"
+                value={form.startDate}
+                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Jam Mulai</Label>
+              <Input
+                type="time"
+                value={form.startTime}
+                onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tanggal Selesai *</Label>
+              <Input
+                type="date"
+                value={form.endDate}
+                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Jam Selesai</Label>
+              <Input
+                type="time"
+                value={form.endTime}
+                onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Kuota Peserta</Label>
+              <Input
+                type="number"
+                min={1}
+                value={form.quota}
+                onChange={(e) => setForm({ ...form, quota: Number(e.target.value) })}
+              />
+            </div>
+
+            <div className="space-y-2 flex items-end">
+              <div className="flex items-center gap-2 rounded-lg border border-border p-3 w-full">
+                <Switch
+                  checked={form.isPublished}
+                  onCheckedChange={(c) => setForm({ ...form, isPublished: c })}
+                />
+                <Label className="text-sm cursor-pointer">Publikasikan (tampil di website)</Label>
+              </div>
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <div className="flex items-center gap-2 rounded-lg border border-border p-3">
+                <Switch
+                  checked={form.isRegistrationOpen}
+                  onCheckedChange={(c) => setForm({ ...form, isRegistrationOpen: c })}
+                />
+                <Label className="text-sm cursor-pointer">Buka Pendaftaran Online</Label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
+          <Button onClick={submit} disabled={saving} className="bg-navy-gradient">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            {event ? 'Simpan Perubahan' : 'Buat Kegiatan'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ============ Check-In Scanner ============
 
 function CheckInScanner({ events, regs, onCheckIn }: {
   events: EventItem[]
