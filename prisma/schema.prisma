@@ -593,12 +593,12 @@ model SiteSetting {
 
 model MenuConfig {
   id          String   @id @default(cuid())
-  label       String                        // Display label (e.g. "Beranda")
-  labelKey    String?                       // i18n key (e.g. "nav.beranda")
-  view        String?                       // Internal view name (e.g. "public", "news-list")
-  url         String?                       // External URL (if isExternal)
-  icon        String?                       // Lucide icon name (e.g. "Info", "Users")
-  parentId    String?                       // Parent menu ID (null = top-level)
+  label       String
+  labelKey    String?
+  view        String?
+  url         String?
+  icon        String?
+  parentId    String?
   parent      MenuConfig? @relation("MenuChildren", fields: [parentId], references: [id], onDelete: Cascade)
   children    MenuConfig[] @relation("MenuChildren")
   order       Int      @default(0)
@@ -611,6 +611,19 @@ model MenuConfig {
   @@index([parentId])
   @@index([order])
   @@index([isVisible])
+}
+
+// ============ CERTIFICATE TEMPLATES ============
+
+model CertificateTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  imageUrl    String?     // background template image
+  fileUrl     String?     // downloadable template file (PDF/PNG)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 

@@ -272,6 +272,8 @@ const ID: Dict = {
   'admin.settings': 'Pengaturan Sistem',
   'admin.siteSettings': 'Pengaturan Situs',
   'admin.menu': 'Manajemen Menu',
+  'admin.members': 'Manajemen Anggota',
+  'admin.certTemplates': 'Template Sertifikat',
   'admin.viewWebsite': 'Lihat Website',
   'admin.logout': 'Keluar',
 
@@ -594,6 +596,8 @@ const EN: Dict = {
   'admin.settings': 'System Settings',
   'admin.siteSettings': 'Site Settings',
   'admin.menu': 'Menu Manager',
+  'admin.members': 'Member Management',
+  'admin.certTemplates': 'Certificate Templates',
   'admin.viewWebsite': 'View Website',
   'admin.logout': 'Sign Out',
 

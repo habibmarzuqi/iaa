@@ -48,6 +48,8 @@ export type View =
   | { name: 'admin-files' }                  // unified file manager
   | { name: 'admin-site-settings' }          // site configuration (name, logo, favicon, contact, etc)
   | { name: 'admin-menu' }                   // menu management (visibility, order, add/delete)
+  | { name: 'admin-members' }               // member management (CRUD)
+  | { name: 'admin-cert-templates' }        // certificate template manager
   | { name: 'verify-certificate' }           // public verification page
   | { name: 'chat' }                         // AI chatbot page
 
