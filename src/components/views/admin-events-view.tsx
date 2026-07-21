@@ -698,7 +698,10 @@ function EventFormDialog({ open, onOpenChange, event, onSaved }: {
                     <X className="h-3 w-3 mr-1" /> Hapus Banner
                   </Button>
                 )}
-                <p className="text-[10px] text-muted-foreground">JPG/PNG/WebP/GIF/SVG, maks 5MB. Disimpan di /uploads/events/</p>
+                <p className="text-[10px] text-muted-foreground">
+                  JPG/PNG/WebP/GIF/SVG. Di lokal: maks 5MB (disimpan di /uploads/events/).
+                  Di Vercel: maks 500KB (otomatis dikompres ke WebP base64). Untuk file besar, gunakan URL gambar eksternal.
+                </p>
               </div>
             </div>
           </div>
