@@ -34,6 +34,15 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url)
   const id = url.searchParams.get('id')
+  const search = url.searchParams.get('search') || ''
+  const role = url.searchParams.get('role') || ''
+  const status = url.searchParams.get('status') || ''
+  const level = url.searchParams.get('level') || ''
+
+  // Pagination params
+  const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'))
+  const pageSize = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') ?? url.searchParams.get('pageSize') ?? '20')))
+  const skip = (page - 1) * pageSize
 
   if (id) {
     const member = await db.member.findUnique({
@@ -44,13 +53,38 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ member })
   }
 
-  const members = await db.member.findMany({
-    include: { user: { select: { email: true, role: true, avatar: true } } },
-    orderBy: { memberNumber: 'asc' },
-    take: 200,
-  })
+  // Build where clause
+  const where: any = {}
+  if (search) {
+    where.OR = [
+      { fullName: { contains: search, mode: 'insensitive' } },
+      { memberNumber: { contains: search, mode: 'insensitive' } },
+      { nip: { contains: search } },
+      { user: { email: { contains: search, mode: 'insensitive' } } },
+    ]
+  }
+  if (role) where.user = { ...where.user, role: role as any }
+  if (status) where.status = status as any
+  if (level) where.arsiparisLevel = level as any
 
-  return NextResponse.json({ members, total: members.length })
+  const [members, total] = await Promise.all([
+    db.member.findMany({
+      where,
+      include: { user: { select: { email: true, role: true, avatar: true } } },
+      orderBy: { memberNumber: 'asc' },
+      skip,
+      take: pageSize,
+    }),
+    db.member.count({ where }),
+  ])
+
+  return NextResponse.json({
+    members,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  })
 }
 
 export async function POST(req: NextRequest) {

@@ -53,17 +53,47 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const certificates = await db.certificate.findMany({
-    include: {
-      member: { select: { fullName: true, memberNumber: true, arsiparisLevel: true } },
-      event: { select: { title: true, startDate: true } },
-      issuedBy: { select: { name: true } },
-    },
-    orderBy: { issuedAt: 'desc' },
-    take: 100,
-  })
+  const search = url.searchParams.get('search') || ''
+  const memberId = url.searchParams.get('memberId') || ''
+  const eventId = url.searchParams.get('eventId') || ''
+  const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'))
+  const pageSize = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') ?? '20')))
+  const skip = (page - 1) * pageSize
 
-  return NextResponse.json({ certificates, total: certificates.length })
+  const where: any = {}
+  if (memberId) where.memberId = memberId
+  if (eventId) where.eventId = eventId
+  if (search) {
+    where.OR = [
+      { certificateNumber: { contains: search, mode: 'insensitive' } },
+      { title: { contains: search, mode: 'insensitive' } },
+      { member: { fullName: { contains: search, mode: 'insensitive' } } },
+      { member: { memberNumber: { contains: search, mode: 'insensitive' } } },
+    ]
+  }
+
+  const [certificates, total] = await Promise.all([
+    db.certificate.findMany({
+      where,
+      include: {
+        member: { select: { fullName: true, memberNumber: true, arsiparisLevel: true } },
+        event: { select: { title: true, startDate: true } },
+        issuedBy: { select: { name: true } },
+      },
+      orderBy: { issuedAt: 'desc' },
+      skip,
+      take: pageSize,
+    }),
+    db.certificate.count({ where }),
+  ])
+
+  return NextResponse.json({
+    certificates,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  })
 }
 
 export async function POST(req: NextRequest) {

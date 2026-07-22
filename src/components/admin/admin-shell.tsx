@@ -9,10 +9,11 @@ import { Separator } from '@/components/ui/separator'
 import {
   LayoutDashboard, Archive, Award, CalendarCheck, FileBarChart,
   LogOut, ChevronRight, BookOpen, Settings, Globe, FolderOpen, Palette, ListOrdered,
-  Users, Image as ImageIcon,
+  Users, Image as ImageIcon, Inbox as InboxIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/i18n'
+import * as React from 'react'
 
 interface AdminNavItem {
   key: string
@@ -26,6 +27,7 @@ const NAV_ITEMS: AdminNavItem[] = [
   { key: 'cms', labelKey: 'admin.cms', icon: Globe, view: { name: 'admin-cms' } },
   { key: 'menu', labelKey: 'admin.menu', icon: ListOrdered, view: { name: 'admin-menu' } },
   { key: 'members', labelKey: 'admin.members', icon: Users, view: { name: 'admin-members' } },
+  { key: 'inbox', labelKey: 'admin.inbox', icon: InboxIcon, view: { name: 'admin-inbox' } },
   { key: 'files', labelKey: 'admin.files', icon: FolderOpen, view: { name: 'admin-files' } },
   { key: 'site-settings', labelKey: 'admin.siteSettings', icon: Palette, view: { name: 'admin-site-settings' } },
   { key: 'archives', labelKey: 'admin.archives', icon: Archive, view: { name: 'admin-archives' } },
@@ -51,6 +53,25 @@ export function AdminShell({
 }) {
   const { user, setView, logout } = useApp()
   const { t } = useTranslation()
+  const [unreadInbox, setUnreadInbox] = React.useState(0)
+
+  // Fetch unread inbox count for badge
+  const loadUnread = React.useCallback(async () => {
+    if (!user) return
+    try {
+      const res = await fetch('/api/contact?unread=true&limit=1', { cache: 'no-store' })
+      if (res.ok) {
+        const d = await res.json()
+        setUnreadInbox(d.unreadCount ?? 0)
+      }
+    } catch {}
+  }, [user])
+
+  React.useEffect(() => {
+    loadUnread()
+    const i = setInterval(loadUnread, 30000) // poll every 30s
+    return () => clearInterval(i)
+  }, [loadUnread])
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -82,21 +103,29 @@ export function AdminShell({
               </div>
             </div>
 
-            {NAV_ITEMS.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => setView(item.view)}
-                className={`flex items-center gap-3 w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
-                  activeKey === item.key
-                    ? 'bg-navy-gradient text-white shadow-premium'
-                    : 'bg-card hover:bg-accent text-foreground/70 hover:text-navy dark:hover:text-white'
-                }`}
-              >
-                <item.icon className="h-4 w-4" />
-                {t(item.labelKey)}
-                {activeKey === item.key && <ChevronRight className="ml-auto h-4 w-4" />}
-              </button>
-            ))}
+            {NAV_ITEMS.map((item) => {
+              const showInboxBadge = item.key === 'inbox' && unreadInbox > 0
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => setView(item.view)}
+                  className={`flex items-center gap-3 w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
+                    activeKey === item.key
+                      ? 'bg-navy-gradient text-white shadow-premium'
+                      : 'bg-card hover:bg-accent text-foreground/70 hover:text-navy dark:hover:text-white'
+                  }`}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {t(item.labelKey)}
+                  {showInboxBadge && (
+                    <span className="ml-auto min-w-[20px] h-5 px-1.5 grid place-items-center rounded-full bg-red-500 text-white text-[10px] font-bold animate-pulse-gold">
+                      {unreadInbox > 9 ? '9+' : unreadInbox}
+                    </span>
+                  )}
+                  {activeKey === item.key && !showInboxBadge && <ChevronRight className="ml-auto h-4 w-4" />}
+                </button>
+              )
+            })}
 
             <Separator className="my-2" />
             <button

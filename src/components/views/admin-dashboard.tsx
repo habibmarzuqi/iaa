@@ -17,7 +17,7 @@ import {
   LayoutDashboard, Users, Award, CalendarCheck, BookOpen, FileText, Clock,
   TrendingUp, TrendingDown, ArrowUpRight, Activity, Loader2, LogOut,
   ChevronRight, UserPlus, FilePlus2, CalendarPlus, Award as AwardIcon,
-  Bell, Search, Download, Settings, Archive, FileBarChart, Globe,
+  Bell, Search, Download, Settings, Archive, FileBarChart, Globe, Inbox as InboxIcon,
 } from 'lucide-react'
 import { formatDate, formatDateTime, timeAgo } from '@/lib/helpers'
 
@@ -138,6 +138,7 @@ export function AdminDashboard() {
             { label: 'Arsip Digital', desc: 'Kelola dokumen organisasi', icon: Archive, color: 'from-cyan-400 to-cyan-600', view: { name: 'admin-archives' as const } },
             { label: 'E-Certificate', desc: 'Generate & verifikasi sertifikat', icon: Award, color: 'from-gold-soft to-gold', view: { name: 'admin-certificates' as const } },
             { label: 'Event & Registrasi', desc: 'Approval & check-in peserta', icon: CalendarCheck, color: 'from-emerald-400 to-emerald-600', view: { name: 'admin-events' as const } },
+            { label: 'Pesan Masuk', desc: 'Inbox pesan dari pengunjung', icon: InboxIcon, color: 'from-rose-400 to-rose-600', view: { name: 'admin-inbox' as const } },
             { label: 'Laporan', desc: 'Export PDF & CSV', icon: FileBarChart, color: 'from-purple-400 to-purple-600', view: { name: 'admin-reports' as const } },
             { label: 'Pengaturan', desc: 'Backup, OAuth, PWA', icon: Settings, color: 'from-slate-500 to-slate-700', view: { name: 'admin-settings' as const } },
           ].map((m) => (

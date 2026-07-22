@@ -50,6 +50,7 @@ export type View =
   | { name: 'admin-menu' }                   // menu management (visibility, order, add/delete)
   | { name: 'admin-members' }               // member management (CRUD)
   | { name: 'admin-cert-templates' }        // certificate template manager
+  | { name: 'admin-inbox' }                 // contact messages inbox
   | { name: 'verify-certificate' }           // public verification page
   | { name: 'chat' }                         // AI chatbot page
 

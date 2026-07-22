@@ -21,11 +21,24 @@ export function ContactView() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
-    setTimeout(() => {
-      setSubmitting(false)
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const d = await res.json()
+      if (!res.ok) {
+        toast.error(d.error || 'Gagal mengirim pesan. Silakan coba lagi.')
+        return
+      }
       toast.success('Pesan Anda berhasil dikirim. Tim IAA akan menghubungi Anda dalam 1-2 hari kerja.')
       setForm({ name: '', email: '', phone: '', subject: '', message: '' })
-    }, 1000)
+    } catch {
+      toast.error('Terjadi kesalahan jaringan. Silakan coba lagi.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (

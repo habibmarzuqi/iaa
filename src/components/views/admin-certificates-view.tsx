@@ -51,28 +51,40 @@ export function AdminCertificatesView() {
   const { setView } = useApp()
   const [certs, setCerts] = React.useState<Cert[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [search, setSearch] = React.useState('')
   const [selected, setSelected] = React.useState<Cert | null>(null)
   const [createOpen, setCreateOpen] = React.useState(false)
   const [detailOpen, setDetailOpen] = React.useState(false)
+  const [searchInput, setSearchInput] = React.useState('')
+  const [search, setSearch] = React.useState('')
+  const [page, setPage] = React.useState(1)
+  const [pageSize, setPageSize] = React.useState(20)
+  const [total, setTotal] = React.useState(0)
 
   const load = React.useCallback(() => {
     setLoading(true)
-    fetch('/api/certificates')
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(pageSize),
+    })
+    if (search) params.set('search', search)
+    fetch(`/api/certificates?${params.toString()}`)
       .then((r) => r.json())
-      .then((d) => setCerts(d.certificates ?? []))
+      .then((d) => {
+        setCerts(d.certificates ?? [])
+        setTotal(d.total ?? 0)
+      })
       .finally(() => setLoading(false))
-  }, [])
+  }, [page, pageSize, search])
 
   React.useEffect(() => { load() }, [load])
 
-  const filtered = certs.filter((c) => {
-    if (!search) return true
-    const s = search.toLowerCase()
-    return c.certificateNumber.toLowerCase().includes(s)
-      || c.title.toLowerCase().includes(s)
-      || c.member.fullName.toLowerCase().includes(s)
-  })
+  React.useEffect(() => {
+    const t = setTimeout(() => {
+      setPage(1)
+      setSearch(searchInput.trim())
+    }, 400)
+    return () => clearTimeout(t)
+  }, [searchInput])
 
   const openDetail = (c: Cert) => {
     setSelected(c)
@@ -93,7 +105,7 @@ export function AdminCertificatesView() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Sertifikat', value: certs.length, icon: Award, color: 'from-gold-soft to-gold' },
+          { label: 'Total Sertifikat', value: total, icon: Award, color: 'from-gold-soft to-gold' },
           { label: 'Bulan Ini', value: certs.filter((c) => new Date(c.issuedAt).getMonth() === new Date().getMonth()).length, icon: Calendar, color: 'from-emerald-400 to-emerald-600' },
           { label: 'Dengan Event', value: certs.filter((c) => c.event).length, icon: FileText, color: 'from-blue-soft to-blue' },
           { label: 'Template Standar', value: certs.filter((c) => c.template === 'default').length, icon: Sparkles, color: 'from-purple-400 to-purple-600' },
@@ -117,7 +129,7 @@ export function AdminCertificatesView() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Cari sertifikat (nomor, judul, nama anggota)..."
-              value={search} onChange={(e) => setSearch(e.target.value)}
+              value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
               className="pl-10"
             />
           </div>
@@ -132,7 +144,7 @@ export function AdminCertificatesView() {
               <Award className="h-5 w-5 text-gold" /> Daftar Sertifikat
             </span>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">{filtered.length} total</Badge>
+              <Badge variant="outline" className="text-xs">{total} total</Badge>
               <Button variant="outline" size="sm" onClick={() => setView({ name: 'verify-certificate' })}>
                 <ExternalLink className="mr-2 h-3.5 w-3.5" /> Halaman Verifikasi
               </Button>
@@ -144,13 +156,13 @@ export function AdminCertificatesView() {
             <div className="space-y-2">
               {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />)}
             </div>
-          ) : filtered.length === 0 ? (
+          ) : certs.length === 0 ? (
             <div className="text-center py-12">
               <Award className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">Belum ada sertifikat</p>
+              <p className="text-sm text-muted-foreground">{search ? 'Tidak ada hasil pencarian' : 'Belum ada sertifikat'}</p>
             </div>
           ) : (
-            filtered.map((c, i) => (
+            certs.map((c, i) => (
               <motion.div
                 key={c.id}
                 initial={{ opacity: 0, y: 10 }}

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { formatDate } from '@/lib/helpers'
 import { toast } from 'sonner'
+import { DataPagination } from '@/components/ui/data-pagination'
 
 interface Member {
   id: string
@@ -50,27 +51,41 @@ export function AdminMembersView() {
   const [members, setMembers] = React.useState<Member[]>([])
   const [loading, setLoading] = React.useState(true)
   const [search, setSearch] = React.useState('')
+  const [searchInput, setSearchInput] = React.useState('')
+  const [page, setPage] = React.useState(1)
+  const [pageSize, setPageSize] = React.useState(20)
+  const [total, setTotal] = React.useState(0)
+  const [totalPages, setTotalPages] = React.useState(1)
   const [editing, setEditing] = React.useState<Member | null>(null)
   const [dialogOpen, setDialogOpen] = React.useState(false)
 
   const load = React.useCallback(() => {
     setLoading(true)
-    fetch('/api/members-admin')
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(pageSize),
+    })
+    if (search) params.set('search', search)
+    fetch(`/api/members-admin?${params.toString()}`)
       .then((r) => r.json())
-      .then((d) => setMembers(d.members ?? []))
+      .then((d) => {
+        setMembers(d.members ?? [])
+        setTotal(d.total ?? 0)
+        setTotalPages(d.totalPages ?? 1)
+      })
       .finally(() => setLoading(false))
-  }, [])
+  }, [page, pageSize, search])
 
   React.useEffect(() => { load() }, [load])
 
-  const filtered = members.filter((m) => {
-    if (!search) return true
-    const s = search.toLowerCase()
-    return m.fullName.toLowerCase().includes(s)
-      || m.memberNumber.toLowerCase().includes(s)
-      || (m.nip || '').includes(s)
-      || (m.user?.email || '').toLowerCase().includes(s)
-  })
+  // Debounce search input
+  React.useEffect(() => {
+    const t = setTimeout(() => {
+      setPage(1)
+      setSearch(searchInput.trim())
+    }, 400)
+    return () => clearTimeout(t)
+  }, [searchInput])
 
   const remove = async (m: Member) => {
     if (!confirm(`Hapus anggota "${m.fullName}"? Akun user juga akan dihapus.`)) return
@@ -98,7 +113,7 @@ export function AdminMembersView() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Anggota', value: members.length, color: 'from-blue-soft to-blue' },
+          { label: 'Total Anggota', value: total, color: 'from-blue-soft to-blue' },
           { label: 'Aktif', value: members.filter((m) => m.status === 'AKTIF').length, color: 'from-emerald-400 to-emerald-600' },
           { label: 'Arsiparis Utama', value: members.filter((m) => m.arsiparisLevel === 'UTAMA').length, color: 'from-gold-soft to-gold' },
           { label: 'Pensiun', value: members.filter((m) => m.status === 'PENSIUN').length, color: 'from-slate-400 to-slate-600' },
@@ -118,7 +133,7 @@ export function AdminMembersView() {
         <CardContent className="p-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Cari nama, nomor anggota, NIP, email..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+            <Input placeholder="Cari nama, nomor anggota, NIP, email..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="pl-10" />
           </div>
         </CardContent>
       </Card>
@@ -128,14 +143,14 @@ export function AdminMembersView() {
         <CardContent className="p-0">
           {loading ? (
             <div className="p-6 space-y-2">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}</div>
-          ) : filtered.length === 0 ? (
+          ) : members.length === 0 ? (
             <div className="text-center py-12">
               <Users className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">Belum ada anggota</p>
+              <p className="text-sm text-muted-foreground">{search ? 'Tidak ada hasil untuk pencarian ini' : 'Belum ada anggota'}</p>
             </div>
           ) : (
             <div className="divide-y divide-border max-h-[600px] overflow-y-auto scrollbar-premium">
-              {filtered.map((m, i) => {
+              {members.map((m, i) => {
                 const initials = m.fullName.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
                 return (
                   <motion.div
@@ -179,6 +194,20 @@ export function AdminMembersView() {
           )}
         </CardContent>
       </Card>
+
+      {total > 0 && (
+        <Card>
+          <CardContent className="p-2">
+            <DataPagination
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              onPageChange={setPage}
+              onPageSizeChange={(s) => { setPageSize(s); setPage(1) }}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <MemberDialog open={dialogOpen} onOpenChange={setDialogOpen} member={editing} onSaved={() => { setDialogOpen(false); load() }} />
     </AdminShell>

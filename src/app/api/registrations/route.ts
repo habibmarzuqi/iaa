@@ -38,21 +38,43 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const search = url.searchParams.get('search') || ''
+  const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'))
+  const pageSize = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') ?? '20')))
+  const skip = (page - 1) * pageSize
+
   const where: any = {}
   if (status) where.status = status
   if (eventId) where.eventId = eventId
+  if (search) {
+    where.OR = [
+      { member: { fullName: { contains: search, mode: 'insensitive' } } },
+      { member: { memberNumber: { contains: search, mode: 'insensitive' } } },
+      { event: { title: { contains: search, mode: 'insensitive' } } },
+    ]
+  }
 
-  const registrations = await db.registration.findMany({
-    where,
-    include: {
-      event: { select: { id: true, title: true, eventType: true, startDate: true, location: true, quota: true } },
-      member: { select: { id: true, fullName: true, memberNumber: true, arsiparisLevel: true, position: true, workUnit: true } },
-    },
-    orderBy: { registeredAt: 'desc' },
-    take: 200,
+  const [registrations, total] = await Promise.all([
+    db.registration.findMany({
+      where,
+      include: {
+        event: { select: { id: true, title: true, eventType: true, startDate: true, location: true, quota: true } },
+        member: { select: { id: true, fullName: true, memberNumber: true, arsiparisLevel: true, position: true, workUnit: true } },
+      },
+      orderBy: { registeredAt: 'desc' },
+      skip,
+      take: pageSize,
+    }),
+    db.registration.count({ where }),
+  ])
+
+  return NextResponse.json({
+    registrations,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
   })
-
-  return NextResponse.json({ registrations, total: registrations.length })
 }
 
 export async function POST(req: NextRequest) {

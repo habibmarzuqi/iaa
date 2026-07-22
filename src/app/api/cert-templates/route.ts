@@ -16,11 +16,38 @@ async function getSessionUser(req: NextRequest) {
   return db.user.findUnique({ where: { id: userId } })
 }
 
-export async function GET() {
-  const templates = await db.certificateTemplate.findMany({
-    orderBy: { createdAt: 'asc' },
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url)
+  const search = url.searchParams.get('search') || ''
+  const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'))
+  const pageSize = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') ?? '20')))
+  const skip = (page - 1) * pageSize
+
+  const where: any = {}
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } },
+    ]
+  }
+
+  const [templates, total] = await Promise.all([
+    db.certificateTemplate.findMany({
+      where,
+      orderBy: { createdAt: 'asc' },
+      skip,
+      take: pageSize,
+    }),
+    db.certificateTemplate.count({ where }),
+  ])
+
+  return NextResponse.json({
+    templates,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
   })
-  return NextResponse.json({ templates })
 }
 
 export async function POST(req: NextRequest) {

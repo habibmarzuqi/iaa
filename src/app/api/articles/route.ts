@@ -69,12 +69,39 @@ export async function GET(req: NextRequest) {
     if (!user || !['SUPER_ADMIN', 'ADMINISTRATOR', 'PENGURUS'].includes(user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    const articles = await db.article.findMany({
-      include: { author: { select: { name: true } } },
-      orderBy: { publishedAt: 'desc' },
-      take: Math.min(limit, 200),
+    const search = url.searchParams.get('search') || ''
+    const category = url.searchParams.get('category') || ''
+    const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'))
+    const pageSize = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') ?? '20')))
+    const skip = (page - 1) * pageSize
+
+    const where: any = {}
+    if (category) where.category = category
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { excerpt: { contains: search, mode: 'insensitive' } },
+        { slug: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
+    const [articles, total] = await Promise.all([
+      db.article.findMany({
+        where,
+        include: { author: { select: { name: true } } },
+        orderBy: { publishedAt: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+      db.article.count({ where }),
+    ])
+    return NextResponse.json({
+      articles,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
     })
-    return NextResponse.json({ articles, total: articles.length })
   }
 
   // Public list

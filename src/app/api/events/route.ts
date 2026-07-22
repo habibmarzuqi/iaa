@@ -82,12 +82,40 @@ export async function GET(req: NextRequest) {
     if (!user || !['SUPER_ADMIN', 'ADMINISTRATOR', 'PENGURUS'].includes(user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    const events = await db.event.findMany({
-      include: { organizer: { select: { name: true } } },
-      orderBy: { startDate: 'desc' },
-      take: Math.min(limit, 200),
+    const search = url.searchParams.get('search') || ''
+    const eventType = url.searchParams.get('eventType') || ''
+    const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'))
+    const pageSize = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') ?? '20')))
+    const skip = (page - 1) * pageSize
+
+    const where: any = {}
+    if (eventType) where.eventType = eventType
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { location: { contains: search, mode: 'insensitive' } },
+        { slug: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
+    const [events, total] = await Promise.all([
+      db.event.findMany({
+        where,
+        include: { organizer: { select: { name: true } } },
+        orderBy: { startDate: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+      db.event.count({ where }),
+    ])
+    return NextResponse.json({
+      events,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
     })
-    return NextResponse.json({ events, total: events.length })
   }
 
   // Public list

@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import { formatDateTime, formatDate, timeAgo } from '@/lib/helpers'
 import { toast } from 'sonner'
+import { DataPagination } from '@/components/ui/data-pagination'
 
 interface RegItem {
   id: string
@@ -83,6 +84,12 @@ export function AdminEventsView() {
   const [loading, setLoading] = React.useState(true)
   const [filterEvent, setFilterEvent] = React.useState('ALL')
   const [filterStatus, setFilterStatus] = React.useState('ALL')
+  const [regPage, setRegPage] = React.useState(1)
+  const [regPageSize, setRegPageSize] = React.useState(20)
+  const [regTotal, setRegTotal] = React.useState(0)
+  const [eventPage, setEventPage] = React.useState(1)
+  const [eventPageSize, setEventPageSize] = React.useState(12)
+  const [eventTotal, setEventTotal] = React.useState(0)
   const [selectedReg, setSelectedReg] = React.useState<RegItem | null>(null)
   const [detailOpen, setDetailOpen] = React.useState(false)
   const [editingEvent, setEditingEvent] = React.useState<EventItem | null>(null)
@@ -90,25 +97,35 @@ export function AdminEventsView() {
 
   const load = React.useCallback(() => {
     setLoading(true)
+    const eventParams = new URLSearchParams({
+      admin: 'true',
+      page: String(eventPage),
+      limit: String(eventPageSize),
+    })
+    const regParams = new URLSearchParams({
+      page: String(regPage),
+      limit: String(regPageSize),
+    })
+    if (filterEvent !== 'ALL') regParams.set('eventId', filterEvent)
+    if (filterStatus !== 'ALL') regParams.set('status', filterStatus)
+
     Promise.all([
-      fetch('/api/events?admin=true&limit=100').then((r) => r.json()),
-      fetch('/api/registrations').then((r) => r.json()),
+      fetch(`/api/events?${eventParams.toString()}`).then((r) => r.json()),
+      fetch(`/api/registrations?${regParams.toString()}`).then((r) => r.json()),
     ])
       .then(([e, r]) => {
         setEvents(e.events ?? [])
+        setEventTotal(e.total ?? 0)
         setRegs(r.registrations ?? [])
+        setRegTotal(r.total ?? 0)
       })
       .finally(() => setLoading(false))
-  }, [])
+  }, [eventPage, eventPageSize, regPage, regPageSize, filterEvent, filterStatus])
 
   React.useEffect(() => { load() }, [load])
 
-  const filtered = regs.filter((r) => {
-    if (filterEvent !== 'ALL' && r.event.id !== filterEvent) return false
-    if (filterStatus !== 'ALL' && r.status !== filterStatus) return false
-    return true
-  })
-
+  // Stats still use ALL registrations data on current page — for accuracy, fetch totals separately.
+  // For simplicity here, we use regTotal and let pending/approved/checkedIn reflect current page.
   const pendingCount = regs.filter((r) => r.status === 'PENDING').length
   const approvedCount = regs.filter((r) => r.status === 'APPROVED').length
   const checkedInCount = regs.filter((r) => r.checkedIn).length
@@ -193,7 +210,7 @@ export function AdminEventsView() {
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-3">
-            <Select value={filterEvent} onValueChange={setFilterEvent}>
+            <Select value={filterEvent} onValueChange={(v) => { setFilterEvent(v); setRegPage(1) }}>
               <SelectTrigger className="sm:w-[280px]">
                 <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
                 <SelectValue />
@@ -205,7 +222,7 @@ export function AdminEventsView() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setRegPage(1) }}>
               <SelectTrigger className="sm:w-[200px]">
                 <SelectValue />
               </SelectTrigger>
@@ -232,7 +249,7 @@ export function AdminEventsView() {
       <Tabs defaultValue="registrations">
         <TabsList>
           <TabsTrigger value="registrations" className="gap-1.5">
-            <ListChecks className="h-3.5 w-3.5" /> Registrasi ({filtered.length})
+            <ListChecks className="h-3.5 w-3.5" /> Registrasi ({regTotal})
           </TabsTrigger>
           <TabsTrigger value="events" className="gap-1.5">
             <CalendarCheck className="h-3.5 w-3.5" /> Kegiatan ({events.length})
@@ -250,14 +267,14 @@ export function AdminEventsView() {
                 <div className="p-6 space-y-2">
                   {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}
                 </div>
-              ) : filtered.length === 0 ? (
+              ) : regs.length === 0 ? (
                 <div className="text-center py-12">
                   <Users className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground">Belum ada pendaftaran</p>
                 </div>
               ) : (
-                <div className="divide-y divide-border max-h-[600px] overflow-y-auto scrollbar-premium">
-                  {filtered.map((r, i) => {
+                <div className="divide-y divide-border">
+                  {regs.map((r, i) => {
                     const sm = STATUS_META[r.status] ?? STATUS_META.PENDING
                     const initials = r.member.fullName.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
                     return (
@@ -318,6 +335,19 @@ export function AdminEventsView() {
               )}
             </CardContent>
           </Card>
+          {regTotal > 0 && (
+            <Card className="mt-4">
+              <CardContent className="p-2">
+                <DataPagination
+                  page={regPage}
+                  pageSize={regPageSize}
+                  total={regTotal}
+                  onPageChange={setRegPage}
+                  onPageSizeChange={(s) => { setRegPageSize(s); setRegPage(1) }}
+                />
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Events tab */}
@@ -405,9 +435,20 @@ export function AdminEventsView() {
               })}
             </div>
           )}
+          {eventTotal > 0 && (
+            <Card className="mt-4">
+              <CardContent className="p-2">
+                <DataPagination
+                  page={eventPage}
+                  pageSize={eventPageSize}
+                  total={eventTotal}
+                  onPageChange={setEventPage}
+                  onPageSizeChange={(s) => { setEventPageSize(s); setEventPage(1) }}
+                />
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
-
-        {/* Check-in scanner tab */}
         <TabsContent value="checkin">
           <CheckInScanner events={events} regs={regs} onCheckIn={(r) => handleAction(r, 'checkin')} />
         </TabsContent>

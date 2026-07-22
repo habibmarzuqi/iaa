@@ -27,6 +27,7 @@ import { AdminSiteSettingsView } from '@/components/views/admin-site-settings-vi
 import { AdminMenuView } from '@/components/views/admin-menu-view'
 import { AdminMembersView } from '@/components/views/admin-members-view'
 import { AdminCertTemplatesView } from '@/components/views/admin-cert-templates-view'
+import { AdminInboxView } from '@/components/views/admin-inbox-view'
 import { VerifyCertificateView } from '@/components/views/verify-certificate-view'
 import { ChatView } from '@/components/views/chat-view'
 
@@ -70,6 +71,7 @@ export default function Home() {
     case 'admin-menu':
     case 'admin-members':
     case 'admin-cert-templates':
+    case 'admin-inbox':
       if (!user || !['SUPER_ADMIN', 'ADMINISTRATOR', 'PENGURUS'].includes(user.role)) {
         return <LoginPage />
       }
@@ -85,6 +87,7 @@ export default function Home() {
         case 'admin-menu': return <AdminMenuView />
         case 'admin-members': return <AdminMembersView />
         case 'admin-cert-templates': return <AdminCertTemplatesView />
+        case 'admin-inbox': return <AdminInboxView />
         default: return <AdminDashboard />
       }
 
