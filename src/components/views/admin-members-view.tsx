@@ -18,7 +18,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import {
-  Users, Plus, Search, Edit2, Trash2, Loader2, Save, Upload,
+  Users, Plus, Search, Edit2, Trash2, Loader2, Save, Upload, Download, FileText,
   Fingerprint, Building2, Award, GraduationCap, CheckCircle2, X,
   Mail, Phone as PhoneIcon, User as UserIcon,
 } from 'lucide-react'
@@ -58,6 +58,10 @@ export function AdminMembersView() {
   const [totalPages, setTotalPages] = React.useState(1)
   const [editing, setEditing] = React.useState<Member | null>(null)
   const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [importDialogOpen, setImportDialogOpen] = React.useState(false)
+  const [importResult, setImportResult] = React.useState<any>(null)
+  const [importing, setImporting] = React.useState(false)
+  const [downloadingTemplate, setDownloadingTemplate] = React.useState(false)
 
   const load = React.useCallback(() => {
     setLoading(true)
@@ -99,15 +103,72 @@ export function AdminMembersView() {
   const openCreate = () => { setEditing(null); setDialogOpen(true) }
   const openEdit = (m: Member) => { setEditing(m); setDialogOpen(true) }
 
+  const downloadTemplate = async () => {
+    setDownloadingTemplate(true)
+    try {
+      const res = await fetch('/api/members-admin/template')
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        toast.error(d.error || 'Gagal download template')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'template-import-anggota-iaa.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success('Template berhasil diunduh')
+    } catch (e) {
+      toast.error('Gagal download template')
+    } finally {
+      setDownloadingTemplate(false)
+    }
+  }
+
+  const handleImport = async (file: File) => {
+    setImporting(true)
+    setImportResult(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/members-admin/import', { method: 'POST', body: fd })
+      const d = await res.json()
+      if (!res.ok) {
+        toast.error(d.error || 'Gagal import')
+        return
+      }
+      setImportResult(d)
+      toast.success(d.message || `Import selesai: ${d.imported} anggota baru`)
+      load()
+    } catch (e) {
+      toast.error('Terjadi kesalahan saat import')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   return (
     <AdminShell
       activeKey="members"
       title="Manajemen Anggota"
       subtitle="Kelola data anggota IAA: tambah, edit, hapus, upload foto, kelola jenjang & status"
       actions={
-        <Button onClick={openCreate} className="bg-navy-gradient">
-          <Plus className="mr-2 h-4 w-4" /> Tambah Anggota
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={downloadTemplate} disabled={downloadingTemplate}>
+            {downloadingTemplate ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            Template Excel
+          </Button>
+          <Button variant="outline" onClick={() => { setImportResult(null); setImportDialogOpen(true) }}>
+            <Upload className="mr-2 h-4 w-4" /> Import Excel
+          </Button>
+          <Button onClick={openCreate} className="bg-navy-gradient">
+            <Plus className="mr-2 h-4 w-4" /> Tambah Anggota
+          </Button>
+        </div>
       }
     >
       {/* Stats */}
@@ -210,6 +271,15 @@ export function AdminMembersView() {
       )}
 
       <MemberDialog open={dialogOpen} onOpenChange={setDialogOpen} member={editing} onSaved={() => { setDialogOpen(false); load() }} />
+
+      <ImportMembersDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={handleImport}
+        onDownloadTemplate={downloadTemplate}
+        importing={importing}
+        result={importResult}
+      />
     </AdminShell>
   )
 }
@@ -422,6 +492,184 @@ function MemberDialog({ open, onOpenChange, member, onSaved }: {
           <Button onClick={submit} disabled={saving} className="bg-navy-gradient">
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             {saving ? 'Menyimpan...' : 'Simpan'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ============ Import Members Dialog ============
+
+function ImportMembersDialog({
+  open, onOpenChange, onImport, onDownloadTemplate, importing, result,
+}: {
+  open: boolean
+  onOpenChange: (o: boolean) => void
+  onImport: (file: File) => void
+  onDownloadTemplate: () => void
+  importing: boolean
+  result: any
+}) {
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+
+  React.useEffect(() => {
+    if (open) setSelectedFile(null)
+  }, [open])
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (f) setSelectedFile(f)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const f = e.dataTransfer.files?.[0]
+    if (f) setSelectedFile(f)
+  }
+
+  const handleSubmit = () => {
+    if (!selectedFile) {
+      toast.error('Pilih file Excel terlebih dahulu')
+      return
+    }
+    onImport(selectedFile)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-premium">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-navy dark:text-white">
+            <Upload className="h-5 w-5 text-gold" /> Import Anggota dari Excel
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {/* Step 1: Download template */}
+          <div className="rounded-lg border border-border p-4 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="font-semibold text-sm text-navy dark:text-white">Langkah 1: Unduh Template</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Download template Excel berisi format kolom, contoh data, dan instruksi pengisian.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={onDownloadTemplate}>
+                <Download className="mr-2 h-3.5 w-3.5" /> Unduh Template
+              </Button>
+            </div>
+          </div>
+
+          {/* Step 2: Upload */}
+          <div className="rounded-lg border border-border p-4 space-y-3">
+            <div>
+              <div className="font-semibold text-sm text-navy dark:text-white">Langkah 2: Unggah File Excel</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Isi template dengan data anggota, lalu unggah di sini. Format: .xlsx atau .xls, maks 5MB, maks 500 baris.
+              </p>
+            </div>
+
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+              onClick={() => inputRef.current?.click()}
+              className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-gold/50 hover:bg-muted/30 transition-colors"
+            >
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              {selectedFile ? (
+                <div className="space-y-1">
+                  <FileText className="h-8 w-8 text-emerald-600 mx-auto" />
+                  <div className="text-sm font-medium text-navy dark:text-white">{selectedFile.name}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {(selectedFile.size / 1024).toFixed(1)} KB
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <Upload className="h-8 w-8 text-muted-foreground mx-auto" />
+                  <div className="text-sm text-muted-foreground">
+                    Klik untuk pilih file atau drag & drop
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">.xlsx atau .xls, maks 5MB</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Result */}
+          {result && (
+            <div className="rounded-lg border border-border p-4 space-y-3 bg-muted/30">
+              <div className="font-semibold text-sm text-navy dark:text-white">Hasil Import</div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 p-3">
+                  <div className="text-2xl font-bold text-emerald-600">{result.imported}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Berhasil</div>
+                </div>
+                <div className="rounded-lg bg-orange-50 dark:bg-orange-900/20 p-3">
+                  <div className="text-2xl font-bold text-orange-600">{result.skipped}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Dilewati</div>
+                </div>
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-3">
+                  <div className="text-2xl font-bold text-blue-600">{result.total}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Baris</div>
+                </div>
+              </div>
+
+              {result.errors && result.errors.length > 0 && (
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold text-red-600">
+                    Detail Error ({result.errors.length} baris bermasalah):
+                  </div>
+                  <div className="max-h-40 overflow-y-auto scrollbar-premium rounded-lg border border-border bg-background">
+                    {result.errors.slice(0, 50).map((err: any, i: number) => (
+                      <div key={i} className="px-3 py-1.5 text-[11px] border-b border-border/50 last:border-0">
+                        <span className="font-mono text-red-600">Baris {err.row}</span>
+                        <span className="text-muted-foreground mx-2">·</span>
+                        <span className="text-foreground/80">{err.email}</span>
+                        <span className="text-muted-foreground mx-2">·</span>
+                        <span className="text-muted-foreground">{err.reason}</span>
+                      </div>
+                    ))}
+                    {result.errors.length > 50 && (
+                      <div className="px-3 py-2 text-[10px] text-muted-foreground italic">
+                        ...dan {result.errors.length - 50} error lainnya
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Info */}
+          <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 text-[11px] text-blue-700 dark:text-blue-300">
+            <strong>Catatan:</strong> Email dan Nomor Anggota yang sudah ada di database akan otomatis dilewati.
+            Field bertanda * wajib diisi. Setelah import berhasil, anggota dapat login dengan email + password dari file Excel.
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Tutup
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={!selectedFile || importing}
+            className="bg-navy-gradient"
+          >
+            {importing ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mengimpor...</>
+            ) : (
+              <><Upload className="mr-2 h-4 w-4" /> Import Sekarang</>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
