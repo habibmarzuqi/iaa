@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { formatDate } from '@/lib/helpers'
 import { toast } from 'sonner'
+import { DataPagination } from '@/components/ui/data-pagination'
 import { useApp } from '@/lib/store'
 
 interface Cert {
@@ -194,6 +195,20 @@ export function AdminCertificatesView() {
           )}
         </CardContent>
       </Card>
+
+      {total > 0 && (
+        <Card>
+          <CardContent className="p-2">
+            <DataPagination
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              onPageChange={setPage}
+              onPageSizeChange={(s) => { setPageSize(s); setPage(1) }}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Detail Sheet */}
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>

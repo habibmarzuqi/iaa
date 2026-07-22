@@ -18,6 +18,7 @@ import {
   Download, Award, Check, FileText, Star, X,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { DataPagination } from '@/components/ui/data-pagination'
 
 interface Template {
   id: string
@@ -32,16 +33,26 @@ interface Template {
 export function AdminCertTemplatesView() {
   const [templates, setTemplates] = React.useState<Template[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [page, setPage] = React.useState(1)
+  const [pageSize, setPageSize] = React.useState(12)
+  const [total, setTotal] = React.useState(0)
   const [editing, setEditing] = React.useState<Template | null>(null)
   const [dialogOpen, setDialogOpen] = React.useState(false)
 
   const load = React.useCallback(() => {
     setLoading(true)
-    fetch('/api/cert-templates')
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(pageSize),
+    })
+    fetch(`/api/cert-templates?${params.toString()}`)
       .then((r) => r.json())
-      .then((d) => setTemplates(d.templates ?? []))
+      .then((d) => {
+        setTemplates(d.templates ?? [])
+        setTotal(d.total ?? 0)
+      })
       .finally(() => setLoading(false))
-  }, [])
+  }, [page, pageSize])
 
   React.useEffect(() => { load() }, [load])
 
@@ -147,6 +158,20 @@ export function AdminCertTemplatesView() {
             </motion.div>
           ))}
         </div>
+      )}
+
+      {total > 0 && (
+        <Card>
+          <CardContent className="p-2">
+            <DataPagination
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              onPageChange={setPage}
+              onPageSizeChange={(s) => { setPageSize(s); setPage(1) }}
+            />
+          </CardContent>
+        </Card>
       )}
 
       <TemplateDialog open={dialogOpen} onOpenChange={setDialogOpen} template={editing} onSaved={() => { setDialogOpen(false); load() }} />

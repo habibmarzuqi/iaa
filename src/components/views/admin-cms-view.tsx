@@ -31,6 +31,7 @@ import {
 import { useApp } from '@/lib/store'
 import { formatDate, formatDateTime, timeAgo } from '@/lib/helpers'
 import { toast } from 'sonner'
+import { DataPagination } from '@/components/ui/data-pagination'
 import { RichTextEditor } from '@/components/rich-text-editor'
 import { MediaLibraryDialog } from '@/components/media-library-dialog'
 import { RevisionHistoryDialog } from '@/components/revision-history-dialog'
@@ -115,25 +116,40 @@ function ArticlesManager() {
   const { setView } = useApp()
   const [items, setItems] = React.useState<Article[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [searchInput, setSearchInput] = React.useState('')
   const [search, setSearch] = React.useState('')
+  const [page, setPage] = React.useState(1)
+  const [pageSize, setPageSize] = React.useState(20)
+  const [total, setTotal] = React.useState(0)
   const [editing, setEditing] = React.useState<Article | null>(null)
   const [dialogOpen, setDialogOpen] = React.useState(false)
 
   const load = React.useCallback(() => {
     setLoading(true)
-    fetch('/api/articles?admin=true&limit=100')
+    const params = new URLSearchParams({
+      admin: 'true',
+      page: String(page),
+      limit: String(pageSize),
+    })
+    if (search) params.set('search', search)
+    fetch(`/api/articles?${params.toString()}`)
       .then((r) => r.json())
-      .then((d) => setItems(d.articles ?? []))
+      .then((d) => {
+        setItems(d.articles ?? [])
+        setTotal(d.total ?? 0)
+      })
       .finally(() => setLoading(false))
-  }, [])
+  }, [page, pageSize, search])
 
   React.useEffect(() => { load() }, [load])
 
-  const filtered = items.filter((a) => {
-    if (!search) return true
-    const s = search.toLowerCase()
-    return a.title.toLowerCase().includes(s) || a.slug.toLowerCase().includes(s) || a.category.toLowerCase().includes(s)
-  })
+  React.useEffect(() => {
+    const t = setTimeout(() => {
+      setPage(1)
+      setSearch(searchInput.trim())
+    }, 400)
+    return () => clearTimeout(t)
+  }, [searchInput])
 
   const openCreate = () => { setEditing(null); setDialogOpen(true) }
   const openEdit = (a: Article) => { setEditing(a); setDialogOpen(true) }
@@ -154,7 +170,7 @@ function ArticlesManager() {
         <div className="flex flex-col sm:flex-row gap-3 p-4 border-b border-border">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Cari berita..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+            <Input placeholder="Cari berita..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="pl-10" />
           </div>
           <Button
             variant="outline"
@@ -183,11 +199,11 @@ function ArticlesManager() {
         {/* List */}
         {loading ? (
           <div className="p-6 space-y-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}</div>
-        ) : filtered.length === 0 ? (
-          <EmptyState icon={FileText} label="Belum ada berita" />
+        ) : items.length === 0 ? (
+          <EmptyState icon={FileText} label={search ? 'Tidak ada hasil pencarian' : 'Belum ada berita'} />
         ) : (
           <div className="divide-y divide-border max-h-[600px] overflow-y-auto scrollbar-premium">
-            {filtered.map((a, i) => (
+            {items.map((a, i) => (
               <motion.div
                 key={a.id}
                 initial={{ opacity: 0, x: -10 }}
@@ -237,6 +253,18 @@ function ArticlesManager() {
           </div>
         )}
       </CardContent>
+
+      {total > 0 && (
+        <CardContent className="p-2 border-t border-border">
+          <DataPagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            onPageSizeChange={(s) => { setPageSize(s); setPage(1) }}
+          />
+        </CardContent>
+      )}
 
       <ArticleDialog open={dialogOpen} onOpenChange={setDialogOpen} article={editing} onSaved={() => { setDialogOpen(false); load() }} />
     </Card>
