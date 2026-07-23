@@ -275,6 +275,7 @@ const ID: Dict = {
   'admin.members': 'Manajemen Anggota',
   'admin.certTemplates': 'Template Sertifikat',
   'admin.inbox': 'Pesan Masuk',
+  'admin.groups': 'Grup & Permission',
   'admin.viewWebsite': 'Lihat Website',
   'admin.logout': 'Keluar',
 
@@ -600,6 +601,7 @@ const EN: Dict = {
   'admin.members': 'Member Management',
   'admin.certTemplates': 'Certificate Templates',
   'admin.inbox': 'Inbox',
+  'admin.groups': 'Groups & Permissions',
   'admin.viewWebsite': 'View Website',
   'admin.logout': 'Sign Out',
 

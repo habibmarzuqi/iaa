@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import {
   LayoutDashboard, Archive, Award, CalendarCheck, FileBarChart,
   LogOut, ChevronRight, BookOpen, Settings, Globe, FolderOpen, Palette, ListOrdered,
-  Users, Image as ImageIcon, Inbox as InboxIcon,
+  Users, Image as ImageIcon, Inbox as InboxIcon, Shield,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/i18n'
@@ -27,6 +27,7 @@ const NAV_ITEMS: AdminNavItem[] = [
   { key: 'cms', labelKey: 'admin.cms', icon: Globe, view: { name: 'admin-cms' } },
   { key: 'menu', labelKey: 'admin.menu', icon: ListOrdered, view: { name: 'admin-menu' } },
   { key: 'members', labelKey: 'admin.members', icon: Users, view: { name: 'admin-members' } },
+  { key: 'groups', labelKey: 'admin.groups', icon: Shield, view: { name: 'admin-groups' } },
   { key: 'inbox', labelKey: 'admin.inbox', icon: InboxIcon, view: { name: 'admin-inbox' } },
   { key: 'files', labelKey: 'admin.files', icon: FolderOpen, view: { name: 'admin-files' } },
   { key: 'site-settings', labelKey: 'admin.siteSettings', icon: Palette, view: { name: 'admin-site-settings' } },
@@ -54,6 +55,35 @@ export function AdminShell({
   const { user, setView, logout } = useApp()
   const { t } = useTranslation()
   const [unreadInbox, setUnreadInbox] = React.useState(0)
+  const [allowedModules, setAllowedModules] = React.useState<Set<string> | null>(null)
+
+  // Fetch current user's group permissions (allowed modules)
+  React.useEffect(() => {
+    if (!user) return
+    if (user.role === 'SUPER_ADMIN' || user.role === 'ADMINISTRATOR') {
+      // Super admin & administrator can see everything
+      setAllowedModules(null)
+      return
+    }
+    fetch('/api/groups?me=true', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        const perms = d.permissions || {}
+        const allowed = new Set<string>()
+        for (const [module, p] of Object.entries(perms)) {
+          if ((p as any)?.canView) allowed.add(module)
+        }
+        setAllowedModules(allowed)
+      })
+      .catch(() => setAllowedModules(new Set()))
+  }, [user])
+
+  // Filter NAV_ITEMS by group permissions (only for PENGURUS & ANGGOTA)
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (!allowedModules) return true // SUPER_ADMIN/ADMINISTRATOR or still loading
+    // PENGURUS without group permissions: only see dashboard (default fallback)
+    return allowedModules.has(item.view.name) || item.key === 'dashboard'
+  })
 
   // Fetch unread inbox count for badge
   const loadUnread = React.useCallback(async () => {
@@ -103,7 +133,7 @@ export function AdminShell({
               </div>
             </div>
 
-            {NAV_ITEMS.map((item) => {
+            {visibleNavItems.map((item) => {
               const showInboxBadge = item.key === 'inbox' && unreadInbox > 0
               return (
                 <button

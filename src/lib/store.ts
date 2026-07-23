@@ -51,6 +51,7 @@ export type View =
   | { name: 'admin-members' }               // member management (CRUD)
   | { name: 'admin-cert-templates' }        // certificate template manager
   | { name: 'admin-inbox' }                 // contact messages inbox
+  | { name: 'admin-groups' }                // user groups & permissions management
   | { name: 'verify-certificate' }           // public verification page
   | { name: 'chat' }                         // AI chatbot page
 

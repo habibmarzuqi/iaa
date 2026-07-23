@@ -31,6 +31,7 @@ model User {
   auditLogs     AuditLog[]
   archivesUploaded      Archive[]      @relation("ArchiveUploader")
   archiveVersions       ArchiveVersion[] @relation("ArchiveVersionUploader")
+  groupMemberships      UserGroupMembership[]
   archiveAccesses       ArchiveAccess[]   @relation("ArchiveAccessUser")
   chatConversations     ChatConversation[] @relation("ChatConversationUser")
   notifications         Notification[]   @relation("NotificationUser")
@@ -627,3 +628,48 @@ model CertificateTemplate {
 }
 
 
+
+// ============ USER GROUPS & PERMISSIONS ============
+
+model UserGroup {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  color       String   @default("blue")  // badge color: blue, emerald, gold, purple, orange, rose
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       UserGroupMembership[]
+  permissions GroupPermission[]
+
+  @@index([isActive])
+}
+
+model UserGroupMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  groupId   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     UserGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, groupId])
+  @@index([groupId])
+}
+
+model GroupPermission {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     UserGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  module    String   // e.g. "admin-events", "admin-members", "admin-cms"
+  canView   Boolean  @default(true)
+  canCreate Boolean  @default(false)
+  canEdit   Boolean  @default(false)
+  canDelete Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([groupId, module])
+  @@index([groupId])
+}
