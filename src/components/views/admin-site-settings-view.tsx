@@ -18,7 +18,14 @@ import {
   Save, Loader2, Upload, Check, Image as ImageIcon, Clock,
   Facebook, Instagram, Youtube, Linkedin, Twitter, FileImage,
   Building2, Hash, AlertCircle, ToggleLeft, Bot, Languages, Moon, ShieldCheck,
+  Plus, Trash2, X, Code,
 } from 'lucide-react'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
 import { useApp } from '@/lib/store'
 import { toast } from 'sonner'
 
@@ -100,10 +107,13 @@ const SOCIAL_ICONS: Record<string, any> = { facebook: Facebook, instagram: Insta
 
 export function AdminSiteSettingsView() {
   const [settings, setSettings] = React.useState<Record<string, string>>({})
+  const [settingsMeta, setSettingsMeta] = React.useState<Record<string, any>>({})
   const [original, setOriginal] = React.useState<Record<string, string>>({})
   const [loading, setLoading] = React.useState(true)
   const [saving, setSaving] = React.useState(false)
   const [uploadingKey, setUploadingKey] = React.useState<string | null>(null)
+  const [createDialogOpen, setCreateDialogOpen] = React.useState(false)
+  const [deletingKey, setDeletingKey] = React.useState<string | null>(null)
 
   const load = React.useCallback(() => {
     setLoading(true)
@@ -111,16 +121,23 @@ export function AdminSiteSettingsView() {
       .then((r) => r.json())
       .then((d) => {
         const flat: Record<string, string> = {}
+        const meta: Record<string, any> = {}
         for (const [key, val] of Object.entries(d.settings || {})) {
           flat[key] = (val as any)?.value ?? ''
+          meta[key] = val
         }
         setSettings(flat)
+        setSettingsMeta(meta)
         setOriginal(flat)
       })
       .finally(() => setLoading(false))
   }, [])
 
   React.useEffect(() => { load() }, [load])
+
+  // Identify custom settings (not in SETTING_GROUPS)
+  const knownKeys = new Set(Object.values(SETTING_GROUPS).flatMap((g) => g.fields.map((f) => f.key)))
+  const customKeys = Object.keys(settings).filter((k) => !knownKeys.has(k))
 
   const dirty = React.useMemo(() => {
     return Object.keys(settings).some((k) => settings[k] !== original[k])
@@ -129,8 +146,7 @@ export function AdminSiteSettingsView() {
   const handleUpload = async (key: string, type: string, file: File) => {
     setUploadingKey(key)
     try {
-      // Map setting key to upload type
-      const uploadType = key.replace('branding.', '').replace('seo.og', 'og') // logoUrl → logo, faviconUrl → favicon, ogImage → ogImage
+      const uploadType = key.replace('branding.', '').replace('seo.og', 'og')
       const fd = new FormData()
       fd.append('file', file)
       fd.append('type', uploadType)
@@ -145,7 +161,6 @@ export function AdminSiteSettingsView() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      // Only send changed settings
       const changed: Record<string, string> = {}
       for (const k of Object.keys(settings)) {
         if (settings[k] !== original[k]) changed[k] = settings[k]
@@ -164,6 +179,33 @@ export function AdminSiteSettingsView() {
       toast.success(`${Object.keys(changed).length} pengaturan diperbarui`)
       setOriginal({ ...settings })
     } catch { toast.error('Terjadi kesalahan') } finally { setSaving(false) }
+  }
+
+  const handleCreateSetting = async (data: { key: string; value: string; type: string; category: string }) => {
+    try {
+      const res = await fetch('/api/settings?single=true', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal membuat setting'); return }
+      toast.success(`Setting "${data.key}" dibuat`)
+      setCreateDialogOpen(false)
+      load()
+    } catch { toast.error('Terjadi kesalahan') }
+  }
+
+  const handleDeleteSetting = async (key: string) => {
+    if (!confirm(`Hapus setting "${key}"?\n\nTindakan ini tidak dapat dibatalkan.`)) return
+    setDeletingKey(key)
+    try {
+      const res = await fetch(`/api/settings?key=${encodeURIComponent(key)}`, { method: 'DELETE' })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal menghapus'); return }
+      toast.success(`Setting "${key}" dihapus`)
+      load()
+    } catch { toast.error('Terjadi kesalahan') } finally { setDeletingKey(null) }
   }
 
   const renderField = (field: any) => {
@@ -317,10 +359,15 @@ export function AdminSiteSettingsView() {
       title="Pengaturan Situs"
       subtitle="Konfigurasi website publik: nama, logo, favicon, kontak, sosial media, dan SEO"
       actions={
-        <Button onClick={handleSave} disabled={!dirty || saving} className="bg-navy-gradient">
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-          {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Setting Baru
+          </Button>
+          <Button onClick={handleSave} disabled={!dirty || saving} className="bg-navy-gradient">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
+          </Button>
+        </div>
       }
     >
       {loading ? (
@@ -352,6 +399,12 @@ export function AdminSiteSettingsView() {
                   <group.icon className="h-3.5 w-3.5" /> {group.label}
                 </TabsTrigger>
               ))}
+              <TabsTrigger value="custom" className="gap-1.5">
+                <Code className="h-3.5 w-3.5" /> Custom
+                {customKeys.length > 0 && (
+                  <Badge variant="outline" className="text-[9px] ml-1">{customKeys.length}</Badge>
+                )}
+              </TabsTrigger>
             </TabsList>
 
             {Object.entries(SETTING_GROUPS).map(([key, group]) => (
@@ -367,6 +420,79 @@ export function AdminSiteSettingsView() {
                 </Card>
               </TabsContent>
             ))}
+
+            {/* Custom settings tab */}
+            <TabsContent value="custom">
+              <Card>
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <Code className="h-5 w-5 text-gold" />
+                      <h3 className="font-display font-bold text-navy dark:text-white">Custom Settings</h3>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => setCreateDialogOpen(true)}>
+                      <Plus className="mr-2 h-3.5 w-3.5" /> Tambah
+                    </Button>
+                  </div>
+
+                  <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 text-[11px] text-blue-700 dark:text-blue-300">
+                    Custom settings adalah key-value pair bebas yang tidak termasuk dalam kategori standar. Berguna untuk menyimpan konfigurasi tambahan yang dibutuhkan oleh fitur kustom.
+                  </div>
+
+                  {customKeys.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Code className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">Belum ada custom setting</p>
+                      <Button size="sm" variant="outline" className="mt-3" onClick={() => setCreateDialogOpen(true)}>
+                        <Plus className="mr-2 h-3.5 w-3.5" /> Buat Custom Setting
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {customKeys.map((key) => {
+                        const meta = settingsMeta[key] || {}
+                        const value = settings[key] ?? ''
+                        const isDirty = value !== (original[key] ?? '')
+                        return (
+                          <div key={key} className="rounded-lg border border-border p-3 space-y-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <code className="text-xs font-mono font-semibold text-navy dark:text-white bg-muted px-1.5 py-0.5 rounded">{key}</code>
+                              <Badge variant="outline" className="text-[9px]">{meta.type || 'text'}</Badge>
+                              <Badge variant="outline" className="text-[9px]">{meta.category || 'custom'}</Badge>
+                              {isDirty && (
+                                <Badge variant="outline" className="text-[9px] border-gold/40 text-gold bg-gold/5">modified</Badge>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="ml-auto h-7 w-7 p-0 text-red-600"
+                                disabled={deletingKey === key}
+                                onClick={() => handleDeleteSetting(key)}
+                                title="Hapus setting"
+                              >
+                                {deletingKey === key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                              </Button>
+                            </div>
+                            <Textarea
+                              rows={2}
+                              value={value}
+                              onChange={(e) => setSettings((s) => ({ ...s, [key]: e.target.value }))}
+                              placeholder="Value..."
+                              className="text-xs font-mono"
+                            />
+                            {meta.updatedBy && (
+                              <div className="text-[10px] text-muted-foreground">
+                                Diperbarui oleh: {meta.updatedBy} · {meta.updatedAt ? new Date(meta.updatedAt).toLocaleString('id-ID') : '-'}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
           </Tabs>
 
           {/* Live preview */}
@@ -422,6 +548,121 @@ export function AdminSiteSettingsView() {
           </Card>
         </>
       )}
+
+      <CreateSettingDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onCreate={handleCreateSetting}
+      />
     </AdminShell>
+  )
+}
+
+// ============ Create Setting Dialog ============
+
+function CreateSettingDialog({
+  open, onOpenChange, onCreate,
+}: {
+  open: boolean
+  onOpenChange: (o: boolean) => void
+  onCreate: (data: { key: string; value: string; type: string; category: string }) => void
+}) {
+  const [form, setForm] = React.useState({
+    key: '',
+    value: '',
+    type: 'text',
+    category: 'custom',
+  })
+
+  React.useEffect(() => {
+    if (open) {
+      setForm({ key: '', value: '', type: 'text', category: 'custom' })
+    }
+  }, [open])
+
+  const submit = () => {
+    if (!form.key) {
+      toast.error('Key wajib diisi')
+      return
+    }
+    if (!/^[a-zA-Z0-9._-]+$/.test(form.key)) {
+      toast.error('Key hanya boleh huruf, angka, titik, underscore, dan hyphen')
+      return
+    }
+    onCreate(form)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-navy dark:text-white">
+            <Plus className="h-5 w-5 text-gold" /> Buat Setting Baru
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>Key *</Label>
+            <Input
+              value={form.key}
+              onChange={(e) => setForm({ ...form, key: e.target.value })}
+              placeholder="contoh: site.customField"
+              className="font-mono text-sm"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Hanya huruf, angka, titik (.), underscore (_), dan hyphen (-). Harus unik.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Value</Label>
+            <Textarea
+              rows={3}
+              value={form.value}
+              onChange={(e) => setForm({ ...form, value: e.target.value })}
+              placeholder="Isi value setting..."
+              className="font-mono text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="text">text</SelectItem>
+                  <SelectItem value="textarea">textarea</SelectItem>
+                  <SelectItem value="boolean">boolean</SelectItem>
+                  <SelectItem value="number">number</SelectItem>
+                  <SelectItem value="image">image</SelectItem>
+                  <SelectItem value="color">color</SelectItem>
+                  <SelectItem value="json">json</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Input
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                placeholder="custom"
+                className="font-mono text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 text-[11px] text-blue-700 dark:text-blue-300">
+            <strong>Tips:</strong> Gunakan key dengan prefix kategori untuk pengelompokan, contoh: <code>feature.flagX</code>, <code>custom.configY</code>, <code>integration.serviceZ</code>.
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
+          <Button onClick={submit} className="bg-navy-gradient">
+            <Plus className="mr-2 h-4 w-4" /> Buat Setting
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

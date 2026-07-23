@@ -1,15 +1,53 @@
 'use client'
 
+import * as React from 'react'
 import { motion } from 'framer-motion'
 import { useApp } from '@/lib/store'
 import { PublicLayout } from '@/components/layout/public-layout'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Eye, Target, Award, BookOpen, Globe2, Building2, Calendar, Users, ArrowRight, History, Heart } from 'lucide-react'
+import {
+  Eye, Target, Award, BookOpen, Globe2, Building2, Calendar, Users, ArrowRight,
+  History, Heart, Phone, Mail, MapPin, Clock, Facebook, Instagram, Youtube,
+  Linkedin, Twitter, MessageCircle,
+} from 'lucide-react'
+
+const SOCIAL_ICONS: Record<string, any> = {
+  facebook: Facebook, instagram: Instagram, youtube: Youtube, linkedin: Linkedin, twitter: Twitter,
+}
 
 export function AboutView() {
   const { setView } = useApp()
+  const [settings, setSettings] = React.useState<Record<string, string>>({})
+
+  React.useEffect(() => {
+    fetch('/api/settings', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setSettings(d.settings || {}))
+      .catch(() => {})
+  }, [])
+
+  const contact = {
+    address: settings['contact.address'] || '',
+    phone: settings['contact.phone'] || '',
+    fax: settings['contact.fax'] || '',
+    email: settings['contact.email'] || '',
+    whatsapp: settings['contact.whatsapp'] || '',
+    operatingHours: settings['contact.operatingHours'] || '',
+    mapsUrl: settings['contact.mapsUrl'] || '',
+  }
+
+  const socials = [
+    { key: 'social.facebook', label: 'Facebook', icon: Facebook },
+    { key: 'social.instagram', label: 'Instagram', icon: Instagram },
+    { key: 'social.youtube', label: 'YouTube', icon: Youtube },
+    { key: 'social.linkedin', label: 'LinkedIn', icon: Linkedin },
+    { key: 'social.twitter', label: 'Twitter/X', icon: Twitter },
+  ].filter((s) => settings[s.key])
+
+  const hasContactInfo = contact.address || contact.phone || contact.email || contact.whatsapp
+
   return (
     <PublicLayout>
       {/* Hero */}
@@ -23,7 +61,7 @@ export function AboutView() {
             <span className="text-gradient-gold">ANRI (IAA)</span>
           </h1>
           <p className="text-white/70 mt-5 text-lg leading-relaxed max-w-2xl mx-auto">
-            Organisasi profesi resmi arsiparis di lingkungan Arsip Nasional Republik Indonesia, berdedikasi membangun sistem kearsipan nasional yang modern, profesional, dan berkelanjutan.
+            {settings['site.description'] || 'Organisasi profesi resmi arsiparis di lingkungan Arsip Nasional Republik Indonesia, berdedikasi membangun sistem kearsipan nasional yang modern, profesional, dan berkelanjutan.'}
           </p>
         </div>
       </section>
@@ -176,6 +214,167 @@ export function AboutView() {
           </div>
         </div>
       </section>
+
+      {/* ===== Kontak & Alamat (dinamis dari site settings) ===== */}
+      {hasContactInfo && (
+        <section className="py-20 bg-muted/30">
+          <div className="mx-auto max-w-5xl px-4 lg:px-8">
+            <div className="text-center mb-10">
+              <Badge className="bg-gold/10 text-gold border-gold/30 mb-3">Kontak & Sekretariat</Badge>
+              <h2 className="font-display text-3xl font-extrabold text-navy dark:text-white">Hubungi Kami</h2>
+              <p className="text-muted-foreground mt-2 max-w-xl mx-auto">
+                Informasi kontak resmi IAA Digital. Pengurus dapat memperbarui informasi ini melalui menu Pengaturan Situs.
+              </p>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {contact.address && (
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
+                  <Card className="h-full border-border hover:border-gold/40 hover:shadow-premium transition-all">
+                    <CardContent className="p-6">
+                      <div className="grid h-11 w-11 place-items-center rounded-xl bg-navy-gradient text-white mb-4">
+                        <MapPin className="h-5 w-5" />
+                      </div>
+                      <h3 className="font-display font-bold text-navy dark:text-white mb-2">Alamat Sekretariat</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{contact.address}</p>
+                      {contact.mapsUrl && (
+                        <a
+                          href={contact.mapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-blue-brand hover:underline mt-3"
+                        >
+                          <MapPin className="h-3 w-3" /> Lihat di Maps <ArrowRight className="h-3 w-3" />
+                        </a>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+
+              {contact.phone && (
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: 0.1 }}>
+                  <Card className="h-full border-border hover:border-gold/40 hover:shadow-premium transition-all">
+                    <CardContent className="p-6">
+                      <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white mb-4">
+                        <Phone className="h-5 w-5" />
+                      </div>
+                      <h3 className="font-display font-bold text-navy dark:text-white mb-2">Telepon & Fax</h3>
+                      <div className="space-y-1.5 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-3.5 w-3.5 flex-shrink-0" />
+                          <a href={`tel:${contact.phone}`} className="hover:text-navy dark:hover:text-white">{contact.phone}</a>
+                        </div>
+                        {contact.fax && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] uppercase tracking-wide w-12">Fax</span>
+                            <span>{contact.fax}</span>
+                          </div>
+                        )}
+                      </div>
+                      {contact.whatsapp && (
+                        <a
+                          href={`https://wa.me/${contact.whatsapp}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 px-3 py-1.5 text-xs font-medium mt-3"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                        </a>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+
+              {contact.email && (
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: 0.2 }}>
+                  <Card className="h-full border-border hover:border-gold/40 hover:shadow-premium transition-all">
+                    <CardContent className="p-6">
+                      <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-gold-soft to-gold text-white mb-4">
+                        <Mail className="h-5 w-5" />
+                      </div>
+                      <h3 className="font-display font-bold text-navy dark:text-white mb-2">Email</h3>
+                      <div className="space-y-1.5 text-sm text-muted-foreground">
+                        <a href={`mailto:${contact.email}`} className="block hover:text-navy dark:hover:text-white break-all">
+                          {contact.email}
+                        </a>
+                        {settings['contact.emailPengurus'] && (
+                          <a href={`mailto:${settings['contact.emailPengurus']}`} className="block hover:text-navy dark:hover:text-white break-all text-xs">
+                            Pengurus: {settings['contact.emailPengurus']}
+                          </a>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+
+              {contact.operatingHours && (
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: 0.3 }}>
+                  <Card className="h-full border-border hover:border-gold/40 hover:shadow-premium transition-all">
+                    <CardContent className="p-6">
+                      <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-blue-soft to-blue text-white mb-4">
+                        <Clock className="h-5 w-5" />
+                      </div>
+                      <h3 className="font-display font-bold text-navy dark:text-white mb-2">Jam Operasional</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{contact.operatingHours}</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+
+              {socials.length > 0 && (
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: 0.4 }}>
+                  <Card className="h-full border-border hover:border-gold/40 hover:shadow-premium transition-all">
+                    <CardContent className="p-6">
+                      <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-purple-400 to-purple-600 text-white mb-4">
+                        <Globe2 className="h-5 w-5" />
+                      </div>
+                      <h3 className="font-display font-bold text-navy dark:text-white mb-2">Sosial Media</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {socials.map((s) => (
+                          <a
+                            key={s.key}
+                            href={settings[s.key]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="grid h-9 w-9 place-items-center rounded-lg bg-muted hover:bg-navy-gradient text-navy dark:text-white hover:text-white transition-colors"
+                            title={s.label}
+                          >
+                            <s.icon className="h-4 w-4" />
+                          </a>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+
+              <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: 0.5 }}>
+                <Card className="h-full bg-navy-gradient text-white border-0 hover:shadow-premium transition-all">
+                  <CardContent className="p-6 flex flex-col h-full">
+                    <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/15 mb-4">
+                      <Building2 className="h-5 w-5" />
+                    </div>
+                    <h3 className="font-display font-bold mb-2">Punya Pertanyaan?</h3>
+                    <p className="text-xs text-white/70 leading-relaxed flex-1">
+                      Kirim pesan langsung melalui formulir kontak untuk pertanyaan, kerja sama, atau informasi lebih lanjut.
+                    </p>
+                    <Button
+                      onClick={() => setView({ name: 'contact' })}
+                      className="bg-white text-navy hover:bg-white/90 mt-4 text-xs font-semibold"
+                      size="sm"
+                    >
+                      Hubungi Kami <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* CTA */}
       <section className="pb-20">

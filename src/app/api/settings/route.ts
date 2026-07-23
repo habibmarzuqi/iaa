@@ -1,8 +1,10 @@
 /**
  * Site Settings API
- * GET  /api/settings              — public: get all settings (no auth needed)
- * GET  /api/settings?admin=true   — admin: get all settings with metadata
- * POST /api/settings              — admin: bulk update settings { settings: { key: value, ... } }
+ * GET    /api/settings              — public: get all settings (no auth needed)
+ * GET    /api/settings?admin=true   — admin: get all settings with metadata
+ * POST   /api/settings              — admin: bulk update settings { settings: { key: value, ... } }
+ * POST   /api/settings?single=true  — admin: create new single setting { key, value, type, category }
+ * DELETE /api/settings?key=xxx      — admin: delete a setting by key
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
@@ -121,8 +123,64 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const url = new URL(req.url)
+  const single = url.searchParams.get('single') === 'true'
+
   try {
     const body = await req.json()
+
+    // ===== Single create mode =====
+    if (single) {
+      const { key, value, type, category } = body as {
+        key: string
+        value: string
+        type?: string
+        category?: string
+      }
+
+      if (!key || typeof key !== 'string') {
+        return NextResponse.json({ error: 'key wajib diisi' }, { status: 400 })
+      }
+
+      // Validate key format: only allow letters, numbers, dots, underscores, hyphens
+      if (!/^[a-zA-Z0-9._-]+$/.test(key)) {
+        return NextResponse.json(
+          { error: 'Format key tidak valid. Hanya huruf, angka, titik, underscore, dan hyphen.' },
+          { status: 400 },
+        )
+      }
+
+      // Check if key already exists
+      const existing = await db.siteSetting.findUnique({ where: { key } })
+      if (existing) {
+        return NextResponse.json(
+          { error: `Setting dengan key "${key}" sudah ada` },
+          { status: 400 },
+        )
+      }
+
+      const setting = await db.siteSetting.create({
+        data: {
+          key,
+          value: value ?? '',
+          type: type || 'text',
+          category: category || 'custom',
+          updatedById: user.id,
+        },
+      })
+
+      await db.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'SITE_SETTING_CREATE',
+          description: `Created site setting: ${key}`,
+        },
+      })
+
+      return NextResponse.json({ setting }, { status: 201 })
+    }
+
+    // ===== Bulk update mode (existing) =====
     const { settings } = body as { settings: Record<string, string> }
 
     if (!settings || typeof settings !== 'object') {
@@ -153,4 +211,36 @@ export async function POST(req: NextRequest) {
     console.error('Settings update error:', e)
     return NextResponse.json({ error: 'Gagal update settings' }, { status: 500 })
   }
+}
+
+// ===== DELETE: delete a single setting by key =====
+export async function DELETE(req: NextRequest) {
+  const user = await getSessionUser(req)
+  if (!user || !['SUPER_ADMIN', 'ADMINISTRATOR'].includes(user.role)) {
+    return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 })
+  }
+
+  const url = new URL(req.url)
+  const key = url.searchParams.get('key')
+
+  if (!key) {
+    return NextResponse.json({ error: 'Parameter key wajib diisi' }, { status: 400 })
+  }
+
+  const existing = await db.siteSetting.findUnique({ where: { key } })
+  if (!existing) {
+    return NextResponse.json({ error: 'Setting tidak ditemukan' }, { status: 404 })
+  }
+
+  await db.siteSetting.delete({ where: { key } })
+
+  await db.auditLog.create({
+    data: {
+      userId: user.id,
+      action: 'SITE_SETTING_DELETE',
+      description: `Deleted site setting: ${key}`,
+    },
+  })
+
+  return NextResponse.json({ ok: true, deleted: key })
 }
