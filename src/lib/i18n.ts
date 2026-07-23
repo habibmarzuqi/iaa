@@ -275,11 +275,6 @@ const ID: Dict = {
   'admin.members': 'Manajemen Anggota',
   'admin.certTemplates': 'Template Sertifikat',
   'admin.inbox': 'Pesan Masuk',
-  'admin.section.utama': 'Utama',
-  'admin.section.konten': 'Konten',
-  'admin.section.people': 'Anggota & Komunikasi',
-  'admin.section.kegiatan': 'Kegiatan & Sertifikat',
-  'admin.section.sistem': 'Sistem',
   'admin.viewWebsite': 'Lihat Website',
   'admin.logout': 'Keluar',
 
@@ -605,11 +600,6 @@ const EN: Dict = {
   'admin.members': 'Member Management',
   'admin.certTemplates': 'Certificate Templates',
   'admin.inbox': 'Inbox',
-  'admin.section.utama': 'Main',
-  'admin.section.konten': 'Content',
-  'admin.section.people': 'People & Comms',
-  'admin.section.kegiatan': 'Events & Certs',
-  'admin.section.sistem': 'System',
   'admin.viewWebsite': 'View Website',
   'admin.logout': 'Sign Out',
 
