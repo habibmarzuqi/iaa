@@ -20,6 +20,7 @@ import {
   Bell, Search, Download, Settings, Archive, FileBarChart, Globe, Inbox as InboxIcon,
 } from 'lucide-react'
 import { formatDate, formatDateTime, timeAgo } from '@/lib/helpers'
+import { usePermissions } from '@/lib/use-permissions'
 
 interface Stats {
   totals: {
@@ -57,6 +58,7 @@ const PIE_COLORS = ['#0a1e3f', '#1d4ed8', '#c9a227', '#059669', '#ea580c']
 
 export function AdminDashboard() {
   const { user, setView, logout } = useApp()
+  const { canView } = usePermissions()
   const [stats, setStats] = React.useState<Stats | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [tab, setTab] = React.useState<'overview' | 'members' | 'events' | 'content'>('overview')
@@ -141,7 +143,7 @@ export function AdminDashboard() {
             { label: 'Pesan Masuk', desc: 'Inbox pesan dari pengunjung', icon: InboxIcon, color: 'from-rose-400 to-rose-600', view: { name: 'admin-inbox' as const } },
             { label: 'Laporan', desc: 'Export PDF & CSV', icon: FileBarChart, color: 'from-purple-400 to-purple-600', view: { name: 'admin-reports' as const } },
             { label: 'Pengaturan', desc: 'Backup, OAuth, PWA', icon: Settings, color: 'from-slate-500 to-slate-700', view: { name: 'admin-settings' as const } },
-          ].map((m) => (
+          ].filter((m) => canView(m.view.name)).map((m) => (
             <motion.button
               key={m.label}
               initial={{ opacity: 0, y: 10 }}

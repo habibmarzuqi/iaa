@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useApp } from '@/lib/store'
+import { usePermissions } from '@/lib/use-permissions'
 import { PublicSite } from '@/components/views/public-site'
 import { LoginPage } from '@/components/views/login-page'
 import { MemberDashboard } from '@/components/views/member-dashboard'
@@ -45,6 +46,26 @@ export default function Home() {
       .catch(() => {})
   }, [setUser])
 
+  // Helper: render admin view by name
+  function renderAdminView(name: string): React.ReactNode {
+    switch (name) {
+      case 'admin-archives': return <AdminArchivesView />
+      case 'admin-certificates': return <AdminCertificatesView />
+      case 'admin-events': return <AdminEventsView />
+      case 'admin-reports': return <AdminReportsView />
+      case 'admin-settings': return <AdminSettingsView />
+      case 'admin-cms': return <AdminCMSView />
+      case 'admin-files': return <AdminFilesView />
+      case 'admin-site-settings': return <AdminSiteSettingsView />
+      case 'admin-menu': return <AdminMenuView />
+      case 'admin-members': return <AdminMembersView />
+      case 'admin-cert-templates': return <AdminCertTemplatesView />
+      case 'admin-inbox': return <AdminInboxView />
+      case 'admin-groups': return <AdminGroupsView />
+      default: return <AdminDashboard />
+    }
+  }
+
   // dispatch by view.name
   switch (view.name) {
     case 'login':
@@ -77,22 +98,11 @@ export default function Home() {
       if (!user || !['SUPER_ADMIN', 'ADMINISTRATOR', 'PENGURUS'].includes(user.role)) {
         return <LoginPage />
       }
-      switch (view.name) {
-        case 'admin-archives': return <AdminArchivesView />
-        case 'admin-certificates': return <AdminCertificatesView />
-        case 'admin-events': return <AdminEventsView />
-        case 'admin-reports': return <AdminReportsView />
-        case 'admin-settings': return <AdminSettingsView />
-        case 'admin-cms': return <AdminCMSView />
-        case 'admin-files': return <AdminFilesView />
-        case 'admin-site-settings': return <AdminSiteSettingsView />
-        case 'admin-menu': return <AdminMenuView />
-        case 'admin-members': return <AdminMembersView />
-        case 'admin-cert-templates': return <AdminCertTemplatesView />
-        case 'admin-inbox': return <AdminInboxView />
-        case 'admin-groups': return <AdminGroupsView />
-        default: return <AdminDashboard />
+      // For non-dashboard views, check group permission (PENGURUS only — SUPER_ADMIN/ADMINISTRATOR bypass)
+      if (view.name !== 'admin-dashboard' && user.role === 'PENGURUS') {
+        return <PermissionGate viewName={view.name}>{renderAdminView(view.name)}</PermissionGate>
       }
+      return renderAdminView(view.name)
 
     case 'verify-certificate':
       return <VerifyCertificateView />
@@ -125,5 +135,52 @@ export default function Home() {
     default:
       return <PublicSite />
   }
+}
+
+// ============ Permission Gate ============
+// Wraps admin views for PENGURUS users — blocks access if they don't have
+// group permission for the module, and redirects to dashboard.
+function PermissionGate({ viewName, children }: { viewName: string; children: React.ReactNode }) {
+  const { setView } = useApp()
+  const { loading, canView } = usePermissions()
+
+  // While loading permissions, show a spinner instead of the content
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-navy border-t-transparent mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Memuat permission...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Check if user can view this module
+  if (!canView(viewName)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
+        <div className="max-w-md text-center">
+          <div className="grid h-16 w-16 mx-auto place-items-center rounded-full bg-red-50 dark:bg-red-900/20 mb-4">
+            <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0114.635 4.44m-2.515 0a11.959 11.959 0 00-2.515-.585M12 9v.01m5.636-3.921A11.959 11.959 0 0112 4.44m5.636 3.921a11.959 11.959 0 012.515.585M12 15h.01m5.636-3.921a11.959 11.959 0 00-2.515-.585m2.515.585a11.959 11.959 0 012.515.585" />
+            </svg>
+          </div>
+          <h2 className="font-display text-xl font-bold text-navy dark:text-white mb-2">Akses Ditolak</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Anda tidak memiliki permission untuk mengakses modul ini. Hubungi administrator jika Anda merasa ini adalah kesalahan.
+          </p>
+          <button
+            onClick={() => setView({ name: 'admin-dashboard' })}
+            className="inline-flex items-center gap-2 rounded-lg bg-navy-gradient px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+          >
+            Kembali ke Dashboard
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return <>{children}</>
 }
 
