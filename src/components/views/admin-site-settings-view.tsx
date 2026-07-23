@@ -18,7 +18,7 @@ import {
   Save, Loader2, Upload, Check, Image as ImageIcon, Clock,
   Facebook, Instagram, Youtube, Linkedin, Twitter, FileImage,
   Building2, Hash, AlertCircle, ToggleLeft, Bot, Languages, Moon, ShieldCheck,
-  Plus, Trash2, X, Code,
+  Plus, Trash2, X, Code, BookOpen,
 } from 'lucide-react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -97,6 +97,24 @@ const SETTING_GROUPS = {
       { key: 'header.showVerifyButton', label: 'Verifikasi Sertifikat', type: 'toggle', hint: 'Tombol akses cepat ke halaman verifikasi sertifikat', toggleIcon: 'ShieldCheck' },
       { key: 'header.showLanguageSwitcher', label: 'Pengalih Bahasa (ID/EN)', type: 'toggle', hint: 'Dropdown untuk beralih bahasa Indonesia/English', toggleIcon: 'Languages' },
       { key: 'header.showThemeToggle', label: 'Mode Gelap/Terang', type: 'toggle', hint: 'Tombol untuk beralih dark/light mode', toggleIcon: 'Moon' },
+    ],
+  },
+  about: {
+    label: 'Tentang (Sejarah, Visi, Misi)',
+    icon: BookOpen,
+    fields: [
+      { key: 'about.history', label: 'Sejarah Organisasi', type: 'textarea', hint: 'Pisahkan paragraf dengan baris kosong (Enter 2x)' },
+      { key: 'about.vision', label: 'Visi', type: 'textarea', hint: 'Pernyataan visi organisasi' },
+      { key: 'about.mission', label: 'Misi', type: 'textarea', hint: 'Satu misi per baris (akan dinomori otomatis di halaman publik)' },
+      { key: 'about.values', label: 'Nilai Organisasi', type: 'textarea', hint: 'Format: Judul|Deskripsi (pisahkan tiap nilai dengan baris baru)' },
+      { key: 'about.stats.foundedYear', label: 'Statistik: Tahun Berdiri (nilai)', type: 'text', placeholder: '1973' },
+      { key: 'about.stats.foundedYearLabel', label: 'Statistik: Tahun Berdiri (label)', type: 'text', placeholder: 'Tahun Berdiri' },
+      { key: 'about.stats.yearsActive', label: 'Statistik: Tahun Berkarya (nilai)', type: 'text', placeholder: '53' },
+      { key: 'about.stats.yearsActiveLabel', label: 'Statistik: Tahun Berkarya (label)', type: 'text', placeholder: 'Tahun Berkarya' },
+      { key: 'about.stats.activeMembers', label: 'Statistik: Anggota Aktif (nilai)', type: 'text', placeholder: '2,400+' },
+      { key: 'about.stats.activeMembersLabel', label: 'Statistik: Anggota Aktif (label)', type: 'text', placeholder: 'Anggota Aktif' },
+      { key: 'about.stats.provinces', label: 'Statistik: Provinsi (nilai)', type: 'text', placeholder: '34' },
+      { key: 'about.stats.provincesLabel', label: 'Statistik: Provinsi (label)', type: 'text', placeholder: 'Provinsi' },
     ],
   },
 }

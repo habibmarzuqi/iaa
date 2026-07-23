@@ -57,6 +57,45 @@ const DEFAULT_SETTINGS: Record<string, { value: string; type: string; category: 
   'header.showLanguageSwitcher': { value: 'true', type: 'boolean', category: 'header' },
   'header.showThemeToggle': { value: 'true', type: 'boolean', category: 'header' },
   'header.showVerifyButton': { value: 'true', type: 'boolean', category: 'header' },
+
+  // ABOUT (Sejarah, Visi, Misi, Nilai, Statistik)
+  'about.history': {
+    value: `Ikatan Arsiparis ANRI (IAA) didirikan pada tahun 1973 sebagai wadah komunikasi dan pembinaan profesi arsiparis di lingkungan Arsip Nasional Republik Indonesia. Berdiri dalam konteks pembangunan sistem kearsipan nasional pasca-kemerdekaan, IAA tumbuh menjadi organisasi profesi terkemuka di bidang tata kelola arsip dan informasi publik.
+
+Selama lebih dari lima dekade, IAA telah berkontribusi pada penyusunan berbagai regulasi kearsipan, pelatihan ribuan arsiparis, sertifikasi profesi berjenjang, serta menjadi mitra strategis pemerintah dalam transformasi digital kearsipan nasional. Organisasi ini juga aktif dalam jejaring internasional, termasuk International Council on Archives (ICA) dan Southeast Asian Regional Branch (SEARCA).`,
+    type: 'textarea',
+    category: 'about',
+  },
+  'about.vision': {
+    value: 'Menjadi organisasi profesi arsiparis terdepan di Asia Tenggara yang mendorong transformasi digital kearsipan demi terwujudnya tata kelola informasi publik yang transparan, akuntabel, dan berkelanjutan.',
+    type: 'textarea',
+    category: 'about',
+  },
+  'about.mission': {
+    value: `Meningkatkan kompetensi profesional arsiparis melalui pelatihan, sertifikasi berjenjang, dan pengembangan kapasitas berkelanjutan
+Memperkuat kelembagaan organisasi sebagai mitra strategis pemerintah dalam kebijakan tata kelola arsip nasional
+Mendorong inovasi dan adopsi teknologi digital dalam manajemen arsip dan preservasi warisan informasi
+Membangun jejaring kerja sama nasional dan internasional untuk pertukaran pengetahuan dan praktik terbaik
+Melindungi dan memperjuangkan kepentingan profesi arsiparis serta menjunjung tinggi etika profesi`,
+    type: 'textarea',
+    category: 'about',
+  },
+  'about.values': {
+    value: `Profesional|Kompetensi berstandar nasional & internasional, etika profesi yang tinggi
+Berpengetahuan|Pusat referensi kearsipan terlengkap, riset dan publikasi ilmiah
+Berkontribusi|Mitra strategis pembangunan bangsa, pelayanan publik yang prima
+Berdedikasi|Menjaga memori kolektif bangsa untuk generasi mendatang`,
+    type: 'textarea',
+    category: 'about',
+  },
+  'about.stats.foundedYear': { value: '1973', type: 'text', category: 'about' },
+  'about.stats.yearsActive': { value: '53', type: 'text', category: 'about' },
+  'about.stats.activeMembers': { value: '2,400+', type: 'text', category: 'about' },
+  'about.stats.provinces': { value: '34', type: 'text', category: 'about' },
+  'about.stats.foundedYearLabel': { value: 'Tahun Berdiri', type: 'text', category: 'about' },
+  'about.stats.yearsActiveLabel': { value: 'Tahun Berkarya', type: 'text', category: 'about' },
+  'about.stats.activeMembersLabel': { value: 'Anggota Aktif', type: 'text', category: 'about' },
+  'about.stats.provincesLabel': { value: 'Provinsi', type: 'text', category: 'about' },
 }
 
 async function getSessionUser(req: NextRequest) {
