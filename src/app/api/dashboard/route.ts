@@ -67,11 +67,6 @@ export async function GET(req: NextRequest) {
     certByMonth.push({ label, count })
   }
 
-  } catch (e: any) {
-    console.error('Dashboard error:', e)
-    return NextResponse.json({ error: 'Gagal memuat dashboard: ' + (e.message || 'unknown') }, { status: 500 })
-  }
-
   return NextResponse.json({
     totals: {
       members: totalMembers,
@@ -89,4 +84,8 @@ export async function GET(req: NextRequest) {
     recentArticles,
     upcomingEvents,
   })
+  } catch (e: any) {
+    console.error('Dashboard error:', e)
+    return NextResponse.json({ error: 'Gagal memuat dashboard: ' + (e.message || 'unknown') }, { status: 500 })
+  }
 }
