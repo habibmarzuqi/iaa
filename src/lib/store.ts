@@ -53,6 +53,8 @@ export type View =
   | { name: 'admin-inbox' }                 // contact messages inbox
   | { name: 'admin-groups' }                // user groups & permissions management
   | { name: 'verify-certificate' }           // public verification page
+  | { name: 'my-certificates' }              // public: find my certificates by email
+  | { name: 'register' }                     // public registration page
   | { name: 'chat' }                         // AI chatbot page
 
 interface AppState {

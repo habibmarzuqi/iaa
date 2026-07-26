@@ -84,52 +84,42 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await getSessionUser(req)
-  if (!user || user.role !== 'ANGGOTA' || !user.member) {
-    return NextResponse.json({ error: 'Hanya anggota yang dapat mendaftar kegiatan' }, { status: 403 })
-  }
-
   try {
-    const { eventId } = await req.json()
+    const body = await req.json()
+    const { eventId, participantName, participantEmail, participantPhone, participantInstitution, memberNumber } = body
     if (!eventId) return NextResponse.json({ error: 'eventId wajib diisi' }, { status: 400 })
-
     const event = await db.event.findUnique({ where: { id: eventId } })
     if (!event || !event.isPublished) return NextResponse.json({ error: 'Kegiatan tidak ditemukan' }, { status: 404 })
-    if (!event.isRegistrationOpen) return NextResponse.json({ error: 'Pendaftaran kegiatan ini sudah ditutup' }, { status: 400 })
+    if (!event.isRegistrationOpen) return NextResponse.json({ error: 'Pendaftaran ditutup' }, { status: 400 })
+    const user = await getSessionUser(req)
 
-    // Check existing
-    const existing = await db.registration.findUnique({
-      where: { eventId_memberId: { eventId, memberId: user.member.id } },
-    })
-    if (existing) {
-      return NextResponse.json({ error: 'Anda sudah terdaftar di kegiatan ini', registration: existing }, { status: 400 })
+    // Case 1: Logged-in ANGGOTA
+    if (user && user.role === 'ANGGOTA' && user.member) {
+      const existing = await db.registration.findFirst({ where: { eventId, memberId: user.member.id } })
+      if (existing) return NextResponse.json({ error: 'Anda sudah terdaftar', registration: existing }, { status: 400 })
+      const isFull = event.registeredCount >= event.quota
+      const status = isFull ? 'WAITING_LIST' : 'PENDING'
+      const reg = await db.registration.create({ data: { eventId, memberId: user.member.id, isMember: true, participantName: user.member.fullName, participantEmail: user.email, status } })
+      if (!isFull) await db.event.update({ where: { id: eventId }, data: { registeredCount: { increment: 1 } } })
+      await db.auditLog.create({ data: { userId: user.id, action: 'REGISTRATION_CREATE', description: `Registered: ${event.title}` } })
+      return NextResponse.json({ registration: reg }, { status: 201 })
     }
 
-    // Determine status: APPROVED if quota available, WAITING_LIST if full
+    // Case 2: Public registration (non-member)
+    if (!event.isPublicEvent) return NextResponse.json({ error: 'Kegiatan ini hanya untuk anggota IAA. Silakan login.' }, { status: 403 })
+    if (!participantName || !participantEmail) return NextResponse.json({ error: 'Nama dan email wajib diisi' }, { status: 400 })
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(participantEmail)) return NextResponse.json({ error: 'Format email tidak valid' }, { status: 400 })
+    const existByEmail = await db.registration.findFirst({ where: { eventId, participantEmail: participantEmail.toLowerCase().trim() } })
+    if (existByEmail) return NextResponse.json({ error: 'Email sudah terdaftar', registration: existByEmail }, { status: 400 })
+    let linkedMemberId: string | null = null; let isMember = false
+    if (memberNumber?.trim()) { const em = await db.member.findUnique({ where: { memberNumber: memberNumber.trim() } }); if (em) { linkedMemberId = em.id; isMember = true } }
     const isFull = event.registeredCount >= event.quota
     const status = isFull ? 'WAITING_LIST' : 'PENDING'
-
-    const registration = await db.registration.create({
-      data: { eventId, memberId: user.member.id, status },
-    })
-
-    // Increment registered count (only if not waiting list)
-    if (!isFull) {
-      await db.event.update({
-        where: { id: eventId },
-        data: { registeredCount: { increment: 1 } },
-      })
-    }
-
-    await db.auditLog.create({
-      data: { userId: user.id, action: 'REGISTRATION_CREATE', description: `Registered to event ${event.title}` },
-    })
-
-    return NextResponse.json({ registration }, { status: 201 })
-  } catch (e: any) {
-    console.error('Registration error:', e)
-    return NextResponse.json({ error: 'Gagal mendaftar' }, { status: 500 })
-  }
+    const reg = await db.registration.create({ data: { eventId, memberId: linkedMemberId, isMember, participantName: participantName.trim(), participantEmail: participantEmail.toLowerCase().trim(), participantPhone: participantPhone?.trim() || null, participantInstitution: participantInstitution?.trim() || null, status } })
+    if (!isFull) await db.event.update({ where: { id: eventId }, data: { registeredCount: { increment: 1 } } })
+    if (user) await db.auditLog.create({ data: { userId: user.id, action: 'REGISTRATION_PUBLIC', description: `Public reg: ${event.title} - ${participantName}` } })
+    return NextResponse.json({ registration: reg }, { status: 201 })
+  } catch (e: any) { console.error('Registration error:', e); return NextResponse.json({ error: 'Gagal: ' + (e.message||'unknown') }, { status: 500 }) }
 }
 
 export async function PATCH(req: NextRequest) {

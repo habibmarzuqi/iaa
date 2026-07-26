@@ -40,7 +40,11 @@ export async function GET(req: NextRequest) {
         description: cert.description,
         issuedAt: cert.issuedAt,
         template: cert.template,
-        member: cert.member,
+        member: cert.member || null,
+        participantName: cert.participantName,
+        participantEmail: cert.participantEmail,
+        participantInstitution: cert.participantInstitution,
+        isMember: !!cert.memberId,
         event: cert.event,
         issuedBy: cert.issuedBy,
       },
@@ -87,8 +91,10 @@ export async function GET(req: NextRequest) {
     db.certificate.count({ where }),
   ])
 
+  // Add isMember flag
+  const certsWithFlags = certificates.map((c) => ({ ...c, isMember: !!c.memberId }))
   return NextResponse.json({
-    certificates,
+    certificates: certsWithFlags,
     total,
     page,
     pageSize,
@@ -101,49 +107,29 @@ export async function POST(req: NextRequest) {
   if (!user || !['SUPER_ADMIN', 'ADMINISTRATOR', 'PENGURUS'].includes(user.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
-
   try {
     const body = await req.json()
-    const { memberId, eventId, title, description, template, issuedAt } = body
-
-    if (!memberId || !title) {
-      return NextResponse.json({ error: 'Member dan title wajib diisi' }, { status: 400 })
-    }
-
-    const member = await db.member.findUnique({ where: { id: memberId } })
-    if (!member) return NextResponse.json({ error: 'Anggota tidak ditemukan' }, { status: 404 })
-
-    // Generate cert number: IAA-CERT-{YEAR}-{SEQ}
+    const { memberId, eventId, registrationId, title, description, template, issuedAt, participantName, participantEmail, participantInstitution } = body
+    if (!title) return NextResponse.json({ error: 'Title wajib diisi' }, { status: 400 })
+    if (!memberId && !participantName) return NextResponse.json({ error: 'Isi memberId (anggota) atau participantName (non-anggota)' }, { status: 400 })
+    let member: any = null
+    if (memberId) { member = await db.member.findUnique({ where: { id: memberId } }); if (!member) return NextResponse.json({ error: 'Anggota tidak ditemukan' }, { status: 404 }) }
     const year = new Date().getFullYear()
-    const seq = await db.certificate.count({
-      where: { certificateNumber: { startsWith: `IAA-CERT-${year}-` } },
-    }) + 1
+    const seq = await db.certificate.count({ where: { certificateNumber: { startsWith: `IAA-CERT-${year}-` } } }) + 1
     const certificateNumber = `IAA-CERT-${year}-${String(seq).padStart(4, '0')}`
-
     const cert = await db.certificate.create({
       data: {
-        certificateNumber,
-        memberId,
-        eventId: eventId || null,
-        issuedById: user.id,
-        title,
-        description: description || null,
-        template: template || 'default',
+        certificateNumber, memberId: memberId || null, eventId: eventId || null, registrationId: registrationId || null,
+        issuedById: user.id, title, description: description || null, template: template || 'default',
         issuedAt: issuedAt ? new Date(issuedAt) : new Date(),
+        participantName: !memberId ? participantName?.trim() : null,
+        participantEmail: !memberId ? participantEmail?.toLowerCase().trim() : null,
+        participantInstitution: !memberId ? participantInstitution?.trim() : null,
       },
-      include: {
-        member: { select: { fullName: true, memberNumber: true } },
-        event: { select: { title: true } },
-      },
+      include: { member: { select: { fullName: true, memberNumber: true, arsiparisLevel: true } }, event: { select: { title: true, startDate: true } }, issuedBy: { select: { name: true } } },
     })
-
-    await db.auditLog.create({
-      data: { userId: user.id, action: 'CERTIFICATE_CREATE', description: `Issued cert ${certificateNumber} to ${member.fullName}` },
-    })
-
+    const name = member?.fullName || participantName
+    await db.auditLog.create({ data: { userId: user.id, action: 'CERTIFICATE_CREATE', description: `Issued ${certificateNumber} to ${name}` } })
     return NextResponse.json({ certificate: cert }, { status: 201 })
-  } catch (e: any) {
-    console.error('Certificate create error:', e)
-    return NextResponse.json({ error: 'Gagal membuat sertifikat' }, { status: 500 })
-  }
+  } catch (e: any) { console.error('Cert error:', e); return NextResponse.json({ error: 'Gagal: ' + (e.message||'unknown') }, { status: 500 }) }
 }

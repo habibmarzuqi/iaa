@@ -31,6 +31,8 @@ import { AdminCertTemplatesView } from '@/components/views/admin-cert-templates-
 import { AdminInboxView } from '@/components/views/admin-inbox-view'
 import { AdminGroupsView } from '@/components/views/admin-groups-view'
 import { VerifyCertificateView } from '@/components/views/verify-certificate-view'
+import { MyCertificatesView } from '@/components/views/my-certificates-view'
+import { RegisterPage } from '@/components/views/register-page'
 import { ChatView } from '@/components/views/chat-view'
 
 export default function Home() {
@@ -40,11 +42,20 @@ export default function Home() {
   useEffect(() => {
     fetch('/api/auth/login', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((d) => {
-        if (d.user) setUser(d.user)
-      })
+      .then((d) => { if (d.user) setUser(d.user) })
       .catch(() => {})
   }, [setUser])
+
+  // Deep link support
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const eventSlug = params.get('event')
+    const verifyCert = params.get('verify')
+    const certsEmail = params.get('certs')
+    if (eventSlug) { setView({ name: 'event-detail', slug: eventSlug }); window.history.replaceState({}, '', window.location.pathname) }
+    else if (verifyCert) { setView({ name: 'verify-certificate' }); window.history.replaceState({}, '', window.location.pathname) }
+    else if (certsEmail) { setView({ name: 'my-certificates' }); window.history.replaceState({}, '', window.location.pathname) }
+  }, [setView])
 
   // Helper: render admin view by name
   function renderAdminView(name: string): React.ReactNode {
@@ -69,8 +80,9 @@ export default function Home() {
   // dispatch by view.name
   switch (view.name) {
     case 'login':
-    case 'register':
       return <LoginPage />
+    case 'register':
+      return <RegisterPage />
 
     case 'member-dashboard':
       if (!user || user.role !== 'ANGGOTA') {
@@ -106,6 +118,9 @@ export default function Home() {
 
     case 'verify-certificate':
       return <VerifyCertificateView />
+
+    case 'my-certificates':
+      return <MyCertificatesView />
 
     case 'chat':
       return <ChatView />

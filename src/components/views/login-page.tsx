@@ -205,6 +205,13 @@ export function LoginPage() {
             <p className="text-center text-xs text-muted-foreground">
               Password demo: <code className="bg-muted px-1.5 py-0.5 rounded text-navy dark:text-white font-mono">iaa12345</code>
             </p>
+
+            <div className="text-center pt-2 border-t border-border">
+              <p className="text-xs text-muted-foreground">
+                Belum punya akun?{' '}
+                <button type="button" onClick={() => setView({ name: 'register' })} className="text-blue-brand font-semibold hover:underline">Daftar sebagai Anggota</button>
+              </p>
+            </div>
           </motion.div>
         </div>
 
