@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  try {
   const [
     totalMembers,
     activeMembers,
@@ -58,6 +59,11 @@ export async function GET(req: NextRequest) {
       c.issuedAt.getMonth() === d.getMonth() && c.issuedAt.getFullYear() === d.getFullYear()
     ).length
     certByMonth.push({ label, count })
+  }
+
+  } catch (e: any) {
+    console.error('Dashboard error:', e)
+    return NextResponse.json({ error: 'Gagal memuat dashboard: ' + (e.message || 'unknown') }, { status: 500 })
   }
 
   return NextResponse.json({

@@ -68,8 +68,14 @@ export async function GET(req: NextRequest) {
     db.registration.count({ where }),
   ])
 
+  // Add isMember flag for frontend null-safety
+  const regsWithFlags = registrations.map((r) => ({
+    ...r,
+    isMember: !!r.memberId,
+  }))
+
   return NextResponse.json({
-    registrations,
+    registrations: regsWithFlags,
     total,
     page,
     pageSize,

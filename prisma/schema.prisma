@@ -218,15 +218,21 @@ model Registration {
   id          String   @id @default(cuid())
   eventId     String
   event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  memberId    String
-  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId    String?
+  member      Member?  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  isMember    Boolean  @default(true)
+  participantName        String?
+  participantEmail       String?
+  participantPhone       String?
+  participantInstitution String?
   status      RegistrationStatus @default(PENDING)
   checkedIn   Boolean  @default(false)
   checkedInAt DateTime?
   registeredAt DateTime @default(now())
 
-  @@unique([eventId, memberId])
   @@index([status])
+  @@index([memberId])
+  @@index([participantEmail])
 }
 
 enum RegistrationStatus {
@@ -244,8 +250,12 @@ model Certificate {
   certificateNumber String @unique
   eventId         String?
   event           Event?   @relation(fields: [eventId], references: [id])
-  memberId        String
-  member          Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId        String?
+  member          Member?  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  participantName        String?
+  participantEmail       String?
+  participantInstitution String?
+  registrationId  String?
   issuedById      String
   issuedBy        User     @relation(fields: [issuedById], references: [id])
   title           String
@@ -256,6 +266,7 @@ model Certificate {
 
   @@index([memberId])
   @@index([eventId])
+  @@index([participantEmail])
 }
 
 // ============ DIGITAL LIBRARY ============
