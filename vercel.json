@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "node scripts/vercel-prebuild.mjs && prisma generate && next build",
-  "installCommand": "rm -rf node_modules/.prisma && npm install && npm install sharp",
+  "buildCommand": "node scripts/vercel-prebuild.mjs && rm -rf node_modules/.prisma && prisma generate && next build",
+  "installCommand": "npm install && npm install sharp",
   "functions": {
     "src/app/api/**/route.ts": {
       "maxDuration": 30
