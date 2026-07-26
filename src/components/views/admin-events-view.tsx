@@ -28,7 +28,7 @@ import {
   CalendarCheck, Users, Clock, CheckCircle2, XCircle, UserPlus,
   Search, Calendar, MapPin, QrCode, Check, Filter, ListChecks, UserCheck,
   AlertCircle, Plus, Edit2, Trash2, Loader2, Save, Upload, X,
-  Image as ImageIcon, Link2, Eye, EyeOff,
+  Image as ImageIcon, Link2, Eye, EyeOff, Globe2, Award, Download, CheckCheck,
 } from 'lucide-react'
 import { formatDateTime, formatDate, timeAgo } from '@/lib/helpers'
 import { toast } from 'sonner'
@@ -172,6 +172,73 @@ export function AdminEventsView() {
     } catch { toast.error('Terjadi kesalahan') }
   }
 
+  // ===== Bulk actions for large participant counts =====
+  const [bulkApproving, setBulkApproving] = React.useState(false)
+  const [bulkIssuing, setBulkIssuing] = React.useState(false)
+  const [bulkDialogOpen, setBulkDialogOpen] = React.useState<'approve' | 'issue' | null>(null)
+
+  const bulkApprove = async () => {
+    if (!confirm(`Setujui SEMUA pendaftaran PENDING${filterEvent !== 'ALL' ? ' untuk kegiatan ini' : ''}?\n\nIni tidak bisa dibatalkan.`)) return
+    setBulkApproving(true)
+    try {
+      const res = await fetch('/api/registrations/bulk-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: filterEvent !== 'ALL' ? filterEvent : undefined, status: 'APPROVED' }),
+      })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal'); return }
+      toast.success(d.message || `${d.processed} pendaftaran disetujui`)
+      setBulkDialogOpen(null)
+      load()
+    } catch { toast.error('Terjadi kesalahan') } finally { setBulkApproving(false) }
+  }
+
+  const bulkIssueCerts = async (certTitle: string, certDesc: string, certTemplate: string) => {
+    if (!filterEvent || filterEvent === 'ALL') {
+      toast.error('Pilih kegiatan tertentu dulu di filter')
+      return
+    }
+    setBulkIssuing(true)
+    try {
+      const res = await fetch('/api/certificates/bulk-issue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId: filterEvent,
+          title: certTitle,
+          description: certDesc,
+          template: certTemplate,
+        }),
+      })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal'); return }
+      toast.success(d.message || `${d.issued} sertifikat diterbitkan`)
+      setBulkDialogOpen(null)
+    } catch { toast.error('Terjadi kesalahan') } finally { setBulkIssuing(false) }
+  }
+
+  const exportParticipants = async (eventId: string, eventTitle: string) => {
+    try {
+      const res = await fetch(`/api/events/export-participants?id=${eventId}`)
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        toast.error(d.error || 'Gagal export')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `peserta-${eventTitle.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 50)}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success('File Excel diunduh')
+    } catch { toast.error('Gagal export') }
+  }
+
   const openCreateEvent = () => { setEditingEvent(null); setEventFormOpen(true) }
   const openEditEvent = (e: EventItem) => { setEditingEvent(e); setEventFormOpen(true) }
 
@@ -240,6 +307,42 @@ export function AdminEventsView() {
                 <AlertCircle className="h-3.5 w-3.5" />
                 {waitingCount} peserta di waiting list
               </div>
+            )}
+          </div>
+          {/* Bulk action toolbar */}
+          <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setBulkDialogOpen('approve')}
+              disabled={bulkApproving}
+              className="border-emerald-400/40 text-emerald-600 hover:bg-emerald-50"
+            >
+              {bulkApproving ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <CheckCheck className="mr-2 h-3.5 w-3.5" />}
+              Approve Semua Pending
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setBulkDialogOpen('issue')}
+              disabled={bulkIssuing || filterEvent === 'ALL'}
+              className="border-gold/40 text-gold hover:bg-gold/10"
+            >
+              {bulkIssuing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Award className="mr-2 h-3.5 w-3.5" />}
+              Terbitkan Sertifikat Massal
+            </Button>
+            {filterEvent !== 'ALL' && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const ev = events.find((e) => e.id === filterEvent)
+                  if (ev) exportParticipants(ev.id, ev.title)
+                }}
+                className="ml-auto"
+              >
+                <Download className="mr-2 h-3.5 w-3.5" /> Export Peserta (Excel)
+              </Button>
             )}
           </div>
         </CardContent>
@@ -561,7 +664,107 @@ export function AdminEventsView() {
         event={editingEvent}
         onSaved={() => { setEventFormOpen(false); load() }}
       />
+
+      {/* Bulk Approve Dialog */}
+      {bulkDialogOpen === 'approve' && (
+        <Dialog open={true} onOpenChange={() => setBulkDialogOpen(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-navy dark:text-white">
+                <CheckCheck className="h-5 w-5 text-emerald-600" /> Approve Massal
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-3 text-sm text-emerald-700 dark:text-emerald-300">
+                <p>Semua pendaftaran dengan status <strong>PENDING</strong>{filterEvent !== 'ALL' ? ' untuk kegiatan terpilih' : ''} akan disetujui sekaligus.</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Pastikan Anda sudah meninjau semua pendaftar sebelum approve massal. Tindakan ini tidak bisa dibatalkan.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBulkDialogOpen(null)}>Batal</Button>
+              <Button onClick={bulkApprove} disabled={bulkApproving} className="bg-emerald-600 hover:bg-emerald-700">
+                {bulkApproving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCheck className="mr-2 h-4 w-4" />}
+                Approve Semua
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Bulk Issue Certificates Dialog */}
+      {bulkDialogOpen === 'issue' && (
+        <BulkIssueDialog
+          eventName={events.find((e) => e.id === filterEvent)?.title || ''}
+          onIssue={bulkIssueCerts}
+          loading={bulkIssuing}
+          onClose={() => setBulkDialogOpen(null)}
+        />
+      )}
     </AdminShell>
+  )
+}
+
+// ============ Bulk Issue Dialog ============
+
+function BulkIssueDialog({
+  eventName, onIssue, loading, onClose,
+}: {
+  eventName: string
+  onIssue: (title: string, desc: string, template: string) => void
+  loading: boolean
+  onClose: () => void
+}) {
+  const [title, setTitle] = React.useState(`Peserta ${eventName}`)
+  const [desc, setDesc] = React.useState('Sebagai peserta aktif kegiatan')
+  const [template, setTemplate] = React.useState('default')
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-navy dark:text-white">
+            <Award className="h-5 w-5 text-gold" /> Terbitkan Sertifikat Massal
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="rounded-lg bg-gold/5 border border-gold/30 p-3 text-sm">
+            <p className="font-semibold text-navy dark:text-white">Kegiatan: {eventName}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Sertifikat akan diterbitkan ke SEMUA peserta dengan status APPROVED. Peserta yang sudah punya sertifikat akan dilewati. Anggota IAA mendapat notifikasi otomatis.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm">Judul Sertifikat *</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm">Deskripsi (opsional)</Label>
+            <Input value={desc} onChange={(e) => setDesc(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm">Template</Label>
+            <Select value={template} onValueChange={setTemplate}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Standar (Navy + Gold)</SelectItem>
+                <SelectItem value="webinar">Webinar (Biru)</SelectItem>
+                <SelectItem value="training">Pelatihan (Hijau)</SelectItem>
+                <SelectItem value="workshop">Workshop (Oranye)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Batal</Button>
+          <Button onClick={() => onIssue(title, desc, template)} disabled={loading || !title} className="bg-navy-gradient">
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Award className="mr-2 h-4 w-4" />}
+            Terbitkan ke Semua Peserta
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
