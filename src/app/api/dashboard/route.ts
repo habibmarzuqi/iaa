@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     db.libraryItem.count({ where: { isPublished: true } }),
     db.certificate.count(),
     db.registration.count({ where: { status: 'PENDING' } }),
-    db.member.findMany({ take: 5, orderBy: { createdAt: 'desc' }, where: { status: { in: ['AKTIF', 'TIDAK_AKTIF', 'PENSIUN', 'MENINGGAL'] } }, include: { user: { select: { email: true } } }),
+    db.member.findMany({ take: 5, orderBy: { createdAt: 'desc' }, include: { user: { select: { email: true } } } }).catch(() => []),
     db.article.findMany({ take: 5, orderBy: { publishedAt: 'desc' }, include: { author: { select: { name: true } } } }),
     db.event.findMany({ where: { startDate: { gte: new Date() } }, orderBy: { startDate: 'asc' }, take: 5 }),
   ])
