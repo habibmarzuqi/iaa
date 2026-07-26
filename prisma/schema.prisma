@@ -686,3 +686,5 @@ model GroupPermission {
   @@index([groupId])
 }
 
+
+// Updated: Sun Jul 26 15:12:15 UTC 2026
