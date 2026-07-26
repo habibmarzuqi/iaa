@@ -192,6 +192,7 @@ model Event {
   registeredCount Int    @default(0)
   isPublished   Boolean  @default(true)
   isRegistrationOpen Boolean @default(true)
+  isPublicEvent Boolean  @default(false)// true = buka untuk umum
   organizerId   String
   organizer     User     @relation("EventOrganizer", fields: [organizerId], references: [id])
   createdAt     DateTime @default(now())
