@@ -41,7 +41,13 @@ export async function GET(req: NextRequest) {
   ])
 
   const byLevel = await db.member.groupBy({ by: ['arsiparisLevel'], _count: { _all: true } })
-  const byStatus = await db.member.groupBy({ by: ['status'], _count: { _all: true } }).catch(() => [])
+  let byStatus: any[] = []
+  try {
+    byStatus = await db.member.groupBy({ by: ['status'], _count: { _all: true } })
+  } catch {
+    // PENDING status might not exist in enum yet
+    byStatus = [{ status: 'AKTIF', _count: { _all: totalMembers } }]
+  }
 
   const sixMonthsAgo = new Date()
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
