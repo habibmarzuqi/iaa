@@ -1,3 +1,4 @@
+// IAA Digital Schema (updated)
 // IAA Digital - Ikatan Arsiparis ANRI
 // Prisma schema for organization management platform
 
@@ -684,3 +685,4 @@ model GroupPermission {
   @@unique([groupId, module])
   @@index([groupId])
 }
+

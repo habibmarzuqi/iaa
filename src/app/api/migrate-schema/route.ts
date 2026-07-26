@@ -74,6 +74,22 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Fix: Update any PENDING members to AKTIF (enum doesn't support PENDING yet)
+  try {
+    const updated = await db.$executeRawUnsafe(`UPDATE "Member" SET status = 'AKTIF' WHERE status = 'PENDING'`)
+    results.push(`✅ Updated ${updated} PENDING members to AKTIF`)
+  } catch (e: any) {
+    results.push(`⚠️ Update PENDING members: ${e.message?.slice(0, 200)}`)
+  }
+
+  // Also fix: update PENDING registrations count to not include PENDING members
+  try {
+    await db.$executeRawUnsafe(`UPDATE "Event" SET "registeredCount" = GREATEST(0, "registeredCount" - 1) WHERE id IN (SELECT "eventId" FROM "Registration" WHERE status = 'REJECTED')`)
+    results.push('✅ Fixed event registered counts')
+  } catch (e: any) {
+    results.push(`⚠️ Fix event counts: ${e.message?.slice(0, 200)}`)
+  }
+
   // Add indexes
   const indexes = [
     `CREATE INDEX IF NOT EXISTS "Registration_memberId_idx" ON "Registration"("memberId")`,
