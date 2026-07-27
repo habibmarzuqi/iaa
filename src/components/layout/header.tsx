@@ -91,8 +91,16 @@ export function Header() {
   const siteTagline = siteSettings['site.tagline'] || 'Ikatan Arsiparis ANRI'
   const logoUrl = siteSettings['branding.logoUrl']
 
-  // Keyboard shortcut: Cmd/Ctrl+K
+  // Header feature toggles (respect site settings)
+  const showSearch = siteSettings['header.showSearch'] !== 'false'
+  const showAIChatbot = siteSettings['header.showAIChatbot'] !== 'false'
+  const showVerifyButton = siteSettings['header.showVerifyButton'] !== 'false'
+  const showLanguageSwitcher = siteSettings['header.showLanguageSwitcher'] !== 'false'
+  const showThemeToggle = siteSettings['header.showThemeToggle'] !== 'false'
+
+  // Keyboard shortcut: Cmd/Ctrl+K (only if search enabled)
   React.useEffect(() => {
+    if (!showSearch) return
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
@@ -200,6 +208,7 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           {/* Search button */}
+          {showSearch && (
           <button
             onClick={() => setSearchOpen(true)}
             className="hidden md:flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:border-gold/40 hover:text-navy dark:hover:text-white transition-colors"
@@ -211,8 +220,10 @@ export function Header() {
               ⌘K
             </kbd>
           </button>
+          )}
 
           {/* AI Chatbot quick access */}
+          {showAIChatbot && (
           <button
             onClick={() => setView({ name: 'chat' })}
             className="hidden md:flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs font-medium text-gold hover:bg-gold/20 transition-colors"
@@ -222,8 +233,10 @@ export function Header() {
             <span className="hidden lg:inline">{t('nav.chatbot')}</span>
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
           </button>
+          )}
 
           {/* Verify cert quick access */}
+          {showVerifyButton && (
           <button
             onClick={() => setView({ name: 'verify-certificate' })}
             className="hidden md:flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground/70 hover:border-gold/40 hover:text-navy dark:hover:text-white transition-colors"
@@ -232,9 +245,10 @@ export function Header() {
             <ShieldCheck className="h-3.5 w-3.5" />
             <span className="hidden lg:inline">{t('nav.verify')}</span>
           </button>
+          )}
 
-          <LanguageSwitcher />
-          <ThemeToggle />
+          {showLanguageSwitcher && <LanguageSwitcher />}
+          {showThemeToggle && <ThemeToggle />}
 
           {user && <NotificationBell />}
 
@@ -347,18 +361,28 @@ export function Header() {
                   </Button>
                 )}
                 <div className="mt-4 pt-4 border-t border-border space-y-1">
+                  {showAIChatbot && (
                   <button
                     onClick={() => { setView({ name: 'chat' }); setMobileOpen(false) }}
                     className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-accent transition-colors"
                   >
                     <Bot className="h-4 w-4 text-gold" /> {t('nav.chatbot')} Kearsipan
                   </button>
+                  )}
+                  {showVerifyButton && (
                   <button
                     onClick={() => { setView({ name: 'verify-certificate' }); setMobileOpen(false) }}
                     className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-accent transition-colors"
                   >
                     <ShieldCheck className="h-4 w-4 text-gold" /> {t('nav.verify')} Sertifikat
                   </button>
+                  )}
+                  {(showLanguageSwitcher || showThemeToggle) && (
+                  <div className="flex items-center gap-2 pt-2">
+                    {showLanguageSwitcher && <LanguageSwitcher />}
+                    {showThemeToggle && <ThemeToggle />}
+                  </div>
+                  )}
                 </div>
               </div>
             </SheetContent>
