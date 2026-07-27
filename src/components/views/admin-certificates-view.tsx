@@ -36,7 +36,11 @@ interface Cert {
   description: string | null
   issuedAt: string
   template: string
-  member: { fullName: string; memberNumber: string; arsiparisLevel: string | null }
+  member: { fullName: string; memberNumber: string; arsiparisLevel: string | null } | null
+  isMember: boolean
+  participantName: string | null
+  participantEmail: string | null
+  participantInstitution: string | null
   event: { title: string; startDate: string } | null
   issuedBy: { name: string }
 }
@@ -185,8 +189,8 @@ export function AdminCertificatesView() {
                   </div>
                   <h3 className="font-semibold text-navy dark:text-white group-hover:text-blue-brand transition-colors line-clamp-1">{c.title}</h3>
                   <div className="flex items-center gap-3 mt-1 text-[11px] text-muted-foreground">
-                    <span className="flex items-center gap-1"><User className="h-3 w-3" /> {c.member.fullName}</span>
-                    <span className="flex items-center gap-1"><Hash className="h-3 w-3" /> {c.member.memberNumber}</span>
+                    <span className="flex items-center gap-1"><User className="h-3 w-3" /> {(c.isMember ? c.member?.fullName : c.participantName)}</span>
+                    <span className="flex items-center gap-1"><Hash className="h-3 w-3" /> {(c.isMember ? c.member?.memberNumber : "")}</span>
                     <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatDate(c.issuedAt)}</span>
                   </div>
                 </div>
@@ -226,9 +230,9 @@ export function AdminCertificatesView() {
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <Info label="Nomor Sertifikat" value={selected.certificateNumber} />
                   <Info label="Template" value={selected.template} />
-                  <Info label="Penerima" value={selected.member.fullName} />
-                  <Info label="No. Anggota" value={selected.member.memberNumber} />
-                  <Info label="Jenjang" value={selected.member.arsiparisLevel ?? '-'} />
+                  <Info label="Penerima" value={(selected.isMember ? selected.member?.fullName : selected.participantName)} />
+                  <Info label="No. Anggota" value={(selected.isMember ? selected.member?.memberNumber : "-")} />
+                  <Info label="Jenjang" value={selected.member?.arsiparisLevel ?? '-'} />
                   <Info label="Tanggal Terbit" value={formatDate(selected.issuedAt)} />
                   <Info label="Diterbitkan oleh" value={selected.issuedBy.name} />
                   <Info label="Kegiatan" value={selected.event?.title ?? '-'} />
@@ -247,7 +251,7 @@ export function AdminCertificatesView() {
                     <QRCodeSVG
                       value={JSON.stringify({
                         no: selected.certificateNumber,
-                        name: selected.member.fullName,
+                        name: (selected.isMember ? selected.member?.fullName : selected.participantName),
                         verify: 'https://iaa-anri.go.id/verify',
                       })}
                       size={80}
@@ -268,7 +272,7 @@ export function AdminCertificatesView() {
                   <Button variant="outline" onClick={() => toast.info('Unduh PDF akan segera tersedia')}>
                     <Download className="mr-2 h-4 w-4" /> Unduh PDF
                   </Button>
-                  <Button variant="outline" onClick={() => toast.info('Email terkirim ke ' + selected.member.fullName)}>
+                  <Button variant="outline" onClick={() => toast.info('Email terkirim ke ' + (selected.isMember ? selected.member?.fullName : selected.participantName))}>
                     <Send className="mr-2 h-4 w-4" /> Kirim Email
                   </Button>
                 </div>
@@ -457,7 +461,7 @@ function CertificatePreview({ cert }: { cert: Cert }) {
           {t.label}
         </h2>
         <div className="text-xs text-white/60 mb-1">Diberikan kepada:</div>
-        <div className="font-display text-xl lg:text-2xl font-bold mb-3">{cert.member.fullName}</div>
+        <div className="font-display text-xl lg:text-2xl font-bold mb-3">{(cert.isMember ? cert.member?.fullName : cert.participantName)}</div>
         <div className="text-sm text-white/80 max-w-md mb-4">{cert.title}</div>
         {cert.event && (
           <div className="text-[10px] text-white/60 mb-3">Kegiatan: {cert.event.title}</div>

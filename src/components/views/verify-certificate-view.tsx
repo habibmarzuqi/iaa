@@ -30,7 +30,11 @@ interface VerifyResult {
       memberNumber: string
       arsiparisLevel: string | null
       status: string
-    }
+    } | null
+    isMember: boolean
+    participantName: string | null
+    participantEmail: string | null
+    participantInstitution: string | null
     event: { title: string; startDate: string; location: string } | null
     issuedBy: { name: string }
   }
@@ -153,8 +157,8 @@ export function VerifyCertificateView() {
                   {/* Details */}
                   <div className="grid sm:grid-cols-2 gap-3">
                     <DetailRow icon={Hash} label="Nomor Sertifikat" value={result.certificate.certificateNumber} mono />
-                    <DetailRow icon={User} label="Penerima" value={result.certificate.member.fullName} />
-                    <DetailRow icon={Hash} label="No. Anggota" value={result.certificate.member.memberNumber} mono />
+                    <DetailRow icon={User} label="Penerima" value={(result.certificate.isMember ? result.certificate.member?.fullName : result.certificate.participantName)} />
+                    <DetailRow icon={Hash} label="No. Anggota" value={(result.certificate.member?.memberNumber || "-")} mono />
                     <DetailRow icon={Award} label="Jenjang Arsiparis" value={result.certificate.member.arsiparisLevel ?? '-'} />
                     <DetailRow icon={FileText} label="Judul" value={result.certificate.title} />
                     <DetailRow icon={Calendar} label="Tanggal Terbit" value={formatDate(result.certificate.issuedAt)} />
@@ -173,7 +177,7 @@ export function VerifyCertificateView() {
                       <QRCodeSVG
                         value={JSON.stringify({
                           no: result.certificate.certificateNumber,
-                          name: result.certificate.member.fullName,
+                          name: (result.certificate.isMember ? result.certificate.member?.fullName : result.certificate.participantName),
                           verify: 'https://iaa-anri.go.id/verify',
                         })}
                         size={80}
@@ -256,7 +260,7 @@ function CertPreview({ cert }: { cert: NonNullable<VerifyResult['certificate']> 
         <div className="text-[10px] tracking-[0.3em] font-semibold mb-1" style={{ color: t.accent }}>IKATAN ARSIPARIS ANRI</div>
         <h2 className="font-display text-xl lg:text-2xl font-extrabold mb-3" style={{ color: t.accent }}>{t.label}</h2>
         <div className="text-xs text-white/60 mb-1">Diberikan kepada:</div>
-        <div className="font-display text-lg lg:text-xl font-bold mb-3">{cert.member.fullName}</div>
+        <div className="font-display text-lg lg:text-xl font-bold mb-3">{(cert.isMember ? cert.member?.fullName : cert.participantName)}</div>
         <div className="text-xs text-white/80 max-w-md mb-4">{cert.title}</div>
         <div className="flex items-end justify-between w-full mt-auto pt-3">
           <div className="text-left">

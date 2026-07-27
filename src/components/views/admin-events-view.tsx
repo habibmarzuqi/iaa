@@ -153,7 +153,7 @@ export function AdminEventsView() {
         toast.error(d.error || `Gagal ${a.label}`)
         return
       }
-      toast.success(`Berhasil ${a.label} ${reg.member.fullName}`)
+      toast.success(`Berhasil ${a.label} ${(reg.member?.fullName || reg.participantName || "peserta")}`)
       setDetailOpen(false)
       load()
     } catch {
@@ -379,7 +379,7 @@ export function AdminEventsView() {
                 <div className="divide-y divide-border">
                   {regs.map((r, i) => {
                     const sm = STATUS_META[r.status] ?? STATUS_META.PENDING
-                    const initials = r.member.fullName.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
+                    const initials = (r.member?.fullName || r.participantName || "P").split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
                     return (
                       <motion.div
                         key={r.id}
@@ -395,7 +395,7 @@ export function AdminEventsView() {
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-sm text-navy dark:text-white">{r.member.fullName}</span>
+                              <span className="font-semibold text-sm text-navy dark:text-white">{(r.isMember ? r.member?.fullName : r.participantName)}</span>
                               <Badge variant="outline" className={`text-[10px] ${sm.color}`}>{sm.label}</Badge>
                               {r.checkedIn && (
                                 <Badge variant="outline" className="text-[10px] border-emerald-400/40 text-emerald-600">
@@ -404,7 +404,7 @@ export function AdminEventsView() {
                               )}
                             </div>
                             <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                              {r.event.title} · {r.member.memberNumber}
+                              {r.event.title} · {(r.isMember ? r.member?.memberNumber : r.participantEmail || "")}
                             </div>
                             <div className="text-[10px] text-muted-foreground mt-0.5">
                               Daftar {timeAgo(r.registeredAt)} · {formatDateTime(r.event.startDate)}
@@ -572,13 +572,13 @@ export function AdminEventsView() {
                   <div className="relative flex items-center gap-3">
                     <Avatar className="h-14 w-14 border-2 border-gold/40">
                       <AvatarFallback className="bg-white/10 text-white font-semibold">
-                        {selectedReg.member.fullName.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()}
+                        {(selectedReg.member?.fullName || selectedReg.participantName || "P").split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <div className="font-display font-bold">{selectedReg.member.fullName}</div>
-                      <div className="text-xs text-white/70 font-mono">{selectedReg.member.memberNumber}</div>
-                      <div className="text-[10px] text-white/60 mt-0.5">{selectedReg.member.position}</div>
+                      <div className="font-display font-bold">{(selectedReg.isMember ? selectedReg.member?.fullName : selectedReg.participantName)}</div>
+                      <div className="text-xs text-white/70 font-mono">{(selectedReg.isMember ? selectedReg.member?.memberNumber : selectedReg.participantEmail || "")}</div>
+                      <div className="text-[10px] text-white/60 mt-0.5">{selectedReg.member?.position}</div>
                     </div>
                   </div>
                 </div>
@@ -588,7 +588,7 @@ export function AdminEventsView() {
                   <Info label="Status" value={STATUS_META[selectedReg.status]?.label ?? selectedReg.status} />
                   <Info label="Checked-In" value={selectedReg.checkedIn ? formatDateTime(selectedReg.checkedInAt!) : 'Belum'} />
                   <Info label="Waktu Daftar" value={formatDateTime(selectedReg.registeredAt)} />
-                  <Info label="Jenjang" value={selectedReg.member.arsiparisLevel ?? '-'} />
+                  <Info label="Jenjang" value={selectedReg.member?.arsiparisLevel ?? '-'} />
                 </div>
 
                 {/* Event info */}
@@ -608,8 +608,8 @@ export function AdminEventsView() {
                       value={JSON.stringify({
                         regId: selectedReg.id,
                         eventId: selectedReg.event.id,
-                        memberNumber: selectedReg.member.memberNumber,
-                        name: selectedReg.member.fullName,
+                        memberNumber: (selectedReg.isMember ? selectedReg.member?.memberNumber : selectedReg.participantEmail || ""),
+                        name: (selectedReg.isMember ? selectedReg.member?.fullName : selectedReg.participantName),
                       })}
                       size={100}
                       level="M"
@@ -1162,12 +1162,12 @@ function CheckInScanner({ events, regs, onCheckIn }: {
                 <div key={r.id} className="flex items-center gap-2 p-2 rounded-lg border border-border hover:bg-muted/30">
                   <Avatar className="h-7 w-7">
                     <AvatarFallback className="bg-navy-gradient text-white text-[10px]">
-                      {r.member.fullName.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()}
+                      {(r.member?.fullName || r.participantName || "P").split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-navy dark:text-white truncate">{r.member.fullName}</div>
-                    <div className="text-[10px] text-muted-foreground font-mono">{r.member.memberNumber}</div>
+                    <div className="text-xs font-medium text-navy dark:text-white truncate">{(r.isMember ? r.member?.fullName : r.participantName)}</div>
+                    <div className="text-[10px] text-muted-foreground font-mono">{(r.isMember ? r.member?.memberNumber : r.participantEmail || "")}</div>
                   </div>
                   <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => onCheckIn(r)}>
                     <Check className="h-3 w-3 mr-1" /> Check-In
@@ -1189,7 +1189,7 @@ function CheckInScanner({ events, regs, onCheckIn }: {
                 <div key={r.id} className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-navy dark:text-white truncate">{r.member.fullName}</div>
+                    <div className="text-xs font-medium text-navy dark:text-white truncate">{(r.isMember ? r.member?.fullName : r.participantName)}</div>
                     <div className="text-[10px] text-muted-foreground">{r.checkedInAt && timeAgo(r.checkedInAt)}</div>
                   </div>
                 </div>
