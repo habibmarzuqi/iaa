@@ -159,7 +159,7 @@ export function VerifyCertificateView() {
                     <DetailRow icon={Hash} label="Nomor Sertifikat" value={result.certificate.certificateNumber} mono />
                     <DetailRow icon={User} label="Penerima" value={(result.certificate.isMember ? result.certificate.member?.fullName : result.certificate.participantName)} />
                     <DetailRow icon={Hash} label="No. Anggota" value={(result.certificate.member?.memberNumber || "-")} mono />
-                    <DetailRow icon={Award} label="Jenjang Arsiparis" value={result.certificate.member.arsiparisLevel ?? '-'} />
+                    <DetailRow icon={Award} label="Jenjang Arsiparis" value={result.certificate.member?.arsiparisLevel ?? '-'} />
                     <DetailRow icon={FileText} label="Judul" value={result.certificate.title} />
                     <DetailRow icon={Calendar} label="Tanggal Terbit" value={formatDate(result.certificate.issuedAt)} />
                     {result.certificate.event && (
