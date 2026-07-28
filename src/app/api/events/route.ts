@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
       quota,
       isRegistrationOpen,
       isPublished,
+      isPublicEvent,
       coverImage,
     } = body
 
@@ -182,6 +183,7 @@ export async function POST(req: NextRequest) {
         quota: typeof quota === 'number' ? quota : 100,
         isRegistrationOpen: isRegistrationOpen !== false,
         isPublished: isPublished !== false,
+        isPublicEvent: isPublicEvent === true,
         organizerId: user.id,
       },
       include: { organizer: { select: { name: true } } },
@@ -224,6 +226,7 @@ export async function PATCH(req: NextRequest) {
       quota,
       isRegistrationOpen,
       isPublished,
+      isPublicEvent,
       coverImage,
     } = body
 
@@ -254,6 +257,7 @@ export async function PATCH(req: NextRequest) {
         ...(quota !== undefined && { quota }),
         ...(isRegistrationOpen !== undefined && { isRegistrationOpen }),
         ...(isPublished !== undefined && { isPublished }),
+        ...(isPublicEvent !== undefined && { isPublicEvent }),
         ...(coverImage !== undefined && { coverImage }),
       },
       include: { organizer: { select: { name: true } } },

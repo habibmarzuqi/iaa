@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     })
 
     if (!user || !user.isActive) {
-      return NextResponse.json({ error: 'Email atau password salah' }, { status: 401 })
+      return NextResponse.json({ error: 'Akun Anda belum aktif. Hubungi pengurus untuk persetujuan pendaftaran.' }, { status: 401 })
     }
     if (user.password !== hashPassword(password)) {
       return NextResponse.json({ error: 'Email atau password salah' }, { status: 401 })

@@ -92,6 +92,7 @@ enum MemberStatus {
   TIDAK_AKTIF
   PENSIUN
   MENINGGAL
+  PENDING
 }
 
 // ============ ARTICLES / BERITA ============
