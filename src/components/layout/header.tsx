@@ -75,6 +75,7 @@ export function Header() {
   const { user, setView, logout } = useApp()
   const { t } = useTranslation()
   const [siteSettings, setSiteSettings] = React.useState<Record<string, string>>({})
+  const [settingsLoaded, setSettingsLoaded] = React.useState(false)
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [scrolled, setScrolled] = React.useState(false)
   const [searchOpen, setSearchOpen] = React.useState(false)
@@ -83,8 +84,8 @@ export function Header() {
   React.useEffect(() => {
     fetch('/api/settings', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((d) => setSiteSettings(d.settings || {}))
-      .catch(() => {})
+      .then((d) => { setSiteSettings(d.settings || {}); setSettingsLoaded(true) })
+      .catch(() => setSettingsLoaded(true))
   }, [])
 
   const siteName = siteSettings['site.name'] || 'IAA Digital'
@@ -207,8 +208,8 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
-          {/* Search button */}
-          {showSearch && (
+          {/* Search button - hidden until settings loaded to prevent flash */}
+          {settingsLoaded && showSearch && (
           <button
             onClick={() => setSearchOpen(true)}
             className="hidden md:flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:border-gold/40 hover:text-navy dark:hover:text-white transition-colors"
@@ -223,7 +224,7 @@ export function Header() {
           )}
 
           {/* AI Chatbot quick access */}
-          {showAIChatbot && (
+          {settingsLoaded && showAIChatbot && (
           <button
             onClick={() => setView({ name: 'chat' })}
             className="hidden md:flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs font-medium text-gold hover:bg-gold/20 transition-colors"
@@ -236,7 +237,7 @@ export function Header() {
           )}
 
           {/* Verify cert quick access */}
-          {showVerifyButton && (
+          {settingsLoaded && showVerifyButton && (
           <button
             onClick={() => setView({ name: 'verify-certificate' })}
             className="hidden md:flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground/70 hover:border-gold/40 hover:text-navy dark:hover:text-white transition-colors"
@@ -247,8 +248,8 @@ export function Header() {
           </button>
           )}
 
-          {showLanguageSwitcher && <LanguageSwitcher />}
-          {showThemeToggle && <ThemeToggle />}
+          {settingsLoaded && showLanguageSwitcher && <LanguageSwitcher />}
+          {settingsLoaded && showThemeToggle && <ThemeToggle />}
 
           {user && <NotificationBell />}
 
@@ -361,7 +362,7 @@ export function Header() {
                   </Button>
                 )}
                 <div className="mt-4 pt-4 border-t border-border space-y-1">
-                  {showAIChatbot && (
+                  {settingsLoaded && showAIChatbot && (
                   <button
                     onClick={() => { setView({ name: 'chat' }); setMobileOpen(false) }}
                     className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-accent transition-colors"
@@ -369,7 +370,7 @@ export function Header() {
                     <Bot className="h-4 w-4 text-gold" /> {t('nav.chatbot')} Kearsipan
                   </button>
                   )}
-                  {showVerifyButton && (
+                  {settingsLoaded && showVerifyButton && (
                   <button
                     onClick={() => { setView({ name: 'verify-certificate' }); setMobileOpen(false) }}
                     className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-accent transition-colors"
@@ -377,7 +378,7 @@ export function Header() {
                     <ShieldCheck className="h-4 w-4 text-gold" /> {t('nav.verify')} Sertifikat
                   </button>
                   )}
-                  {(showLanguageSwitcher || showThemeToggle) && (
+                  {settingsLoaded && (showLanguageSwitcher || showThemeToggle) && (
                   <div className="flex items-center gap-2 pt-2">
                     {showLanguageSwitcher && <LanguageSwitcher />}
                     {showThemeToggle && <ThemeToggle />}
