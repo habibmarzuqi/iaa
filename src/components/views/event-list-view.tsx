@@ -7,14 +7,15 @@ import { PublicLayout } from '@/components/layout/public-layout'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Calendar, MapPin, Clock, Users, Video, GraduationCap, Presentation, Users2, Trophy, ArrowRight } from 'lucide-react'
+import { ArrowLeft, Calendar, MapPin, Clock, Users, Video, GraduationCap, Presentation, Users2, Trophy, ArrowRight, Globe, Shield } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDate } from '@/lib/helpers'
 
 interface EventItem {
   id: string; slug: string; title: string; description: string; eventType: string
   location: string; startDate: string; endDate: string; quota: number
-  registeredCount: number; isRegistrationOpen: boolean
+  registeredCount: number; isRegistrationOpen: boolean; isPublicEvent?: boolean
+  coverImage?: string | null
 }
 
 const EVENT_ICONS: Record<string, any> = {
@@ -36,6 +37,7 @@ export function EventListView() {
   const [events, setEvents] = React.useState<EventItem[]>([])
   const [loading, setLoading] = React.useState(true)
   const [filter, setFilter] = React.useState('ALL')
+  const [targetFilter, setTargetFilter] = React.useState<'ALL' | 'PUBLIC' | 'MEMBERS'>('ALL')
 
   React.useEffect(() => {
     fetch('/api/events?limit=50')
@@ -49,7 +51,14 @@ export function EventListView() {
     return ['ALL', ...Array.from(s)]
   }, [events])
 
-  const filtered = events.filter((e) => filter === 'ALL' || e.eventType === filter)
+  const filtered = events.filter((e) => {
+    const typeMatch = filter === 'ALL' || e.eventType === filter
+    const targetMatch =
+      targetFilter === 'ALL' ||
+      (targetFilter === 'PUBLIC' && e.isPublicEvent) ||
+      (targetFilter === 'MEMBERS' && !e.isPublicEvent)
+    return typeMatch && targetMatch
+  })
 
   return (
     <PublicLayout>
@@ -66,19 +75,49 @@ export function EventListView() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 lg:px-8 py-10">
-        {/* Filter chips */}
-        <div className="flex gap-2 overflow-x-auto scrollbar-premium pb-2 mb-8">
-          {types.map((t) => (
+        {/* Filter chips & Target Audience Filter */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div className="flex gap-2 overflow-x-auto scrollbar-premium pb-2 sm:pb-0">
+            {types.map((t) => (
+              <button
+                key={t}
+                onClick={() => setFilter(t)}
+                className={`px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                  filter === t ? 'bg-navy-gradient text-white shadow-sm' : 'bg-card border border-border text-foreground/70 hover:border-gold/40'
+                }`}
+              >
+                {t === 'ALL' ? 'Semua Jenis' : t}
+              </button>
+            ))}
+          </div>
+
+          {/* Target Audience Filter */}
+          <div className="flex gap-1.5 p-1 bg-muted rounded-xl border border-border self-start sm:self-auto">
             <button
-              key={t}
-              onClick={() => setFilter(t)}
-              className={`px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                filter === t ? 'bg-navy-gradient text-white' : 'bg-card border border-border text-foreground/70 hover:border-gold/40'
+              onClick={() => setTargetFilter('ALL')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                targetFilter === 'ALL' ? 'bg-card text-navy dark:text-white shadow-sm font-semibold' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              {t === 'ALL' ? 'Semua Jenis' : t}
+              Semua Target
             </button>
-          ))}
+            <button
+              onClick={() => setTargetFilter('PUBLIC')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1 ${
+                targetFilter === 'PUBLIC' ? 'bg-emerald-500 text-white shadow-sm font-semibold' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Globe className="h-3 w-3" /> Untuk Umum
+            </button>
+            <button
+              onClick={() => setTargetFilter('MEMBERS')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1 ${
+                targetFilter === 'MEMBERS' ? 'bg-navy-gradient text-white shadow-sm font-semibold' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Shield className="h-3 w-3 text-gold" /> Khusus Anggota
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -98,6 +137,7 @@ export function EventListView() {
               const d = new Date(e.startDate)
               const remaining = e.quota - e.registeredCount
               const pct = Math.min(100, Math.round((e.registeredCount / e.quota) * 100))
+
               return (
                 <motion.div
                   key={e.id}
@@ -109,8 +149,15 @@ export function EventListView() {
                     className="group h-full overflow-hidden border-border hover:border-gold/40 hover:shadow-premium hover:-translate-y-1 transition-all cursor-pointer"
                     onClick={() => setView({ name: 'event-detail', slug: e.slug })}
                   >
-                    <div className={`relative h-32 bg-gradient-to-br ${color} overflow-hidden`}>
-                      <div className="absolute inset-0 bg-grid opacity-30" />
+                    <div className={`relative h-36 bg-gradient-to-br ${color} overflow-hidden`}>
+                      {e.coverImage ? (
+                        <>
+                          <img src={e.coverImage} alt={e.title} className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 bg-grid opacity-30" />
+                      )}
                       <div className="absolute top-3 left-3">
                         <div className="bg-white/95 rounded-lg px-2 py-1.5 text-center text-navy shadow-sm">
                           <div className="text-[9px] uppercase font-semibold">{d.toLocaleString('id-ID', { month: 'short' })}</div>
@@ -118,8 +165,17 @@ export function EventListView() {
                         </div>
                       </div>
                       <Icon className="absolute top-3 right-3 h-6 w-6 text-white/90" />
-                      <div className="absolute bottom-3 left-3">
+                      <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
                         <Badge className="bg-white/20 text-white border-white/30 backdrop-blur text-[10px] uppercase">{e.eventType}</Badge>
+                        {e.isPublicEvent ? (
+                          <Badge className="bg-emerald-500/90 text-white border-emerald-400/30 backdrop-blur text-[10px] flex items-center gap-1">
+                            <Globe className="h-2.5 w-2.5" /> Umum
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-navy/90 text-gold border-gold/40 backdrop-blur text-[10px] flex items-center gap-1">
+                            <Shield className="h-2.5 w-2.5 text-gold" /> Khusus Anggota
+                          </Badge>
+                        )}
                       </div>
                       {!e.isRegistrationOpen && (
                         <Badge className="absolute bottom-3 right-3 bg-red-500/80 text-white border-red-400/30 backdrop-blur text-[10px]">Ditutup</Badge>

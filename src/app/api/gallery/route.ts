@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const url = new URL(req.url)
+  const action = url.searchParams.get('action')
   const id = url.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'ID wajib diisi' }, { status: 400 })
 
@@ -154,6 +155,38 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // Single photo update (title, order)
+  if (action === 'photo') {
+    const existingPhoto = await db.galleryPhoto.findUnique({ where: { id } })
+    if (!existingPhoto) return NextResponse.json({ error: 'Foto tidak ditemukan' }, { status: 404 })
+
+    try {
+      const body = await req.json()
+      const { title, order } = body
+      const updatedPhoto = await db.galleryPhoto.update({
+        where: { id },
+        data: {
+          ...(title !== undefined && { title: title || null }),
+          ...(order !== undefined && { order: Number(order) || 0 }),
+        },
+      })
+
+      await db.auditLog.create({
+        data: {
+          userId: user!.id,
+          action: 'GALLERY_PHOTO_UPDATE',
+          description: `Updated photo title: ${updatedPhoto.title || 'Untitled'}`,
+        },
+      })
+
+      return NextResponse.json({ photo: updatedPhoto })
+    } catch (e: any) {
+      console.error('Gallery photo update error:', e)
+      return NextResponse.json({ error: 'Gagal update foto' }, { status: 500 })
+    }
+  }
+
+  // Default: Album update
   const existing = await db.galleryAlbum.findUnique({ where: { id } })
   if (!existing) return NextResponse.json({ error: 'Album tidak ditemukan' }, { status: 404 })
 
@@ -166,7 +199,7 @@ export async function PATCH(req: NextRequest) {
       data: {
         ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),
-        ...(coverImage !== undefined && { coverImage }),
+        ...(coverImage !== undefined && { coverImage: coverImage || null }),
       },
       include: { _count: { select: { photos: true } } },
     })

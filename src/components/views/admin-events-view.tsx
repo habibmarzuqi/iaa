@@ -58,6 +58,7 @@ interface EventItem {
   registeredCount: number
   isPublished: boolean
   isRegistrationOpen: boolean
+  isPublicEvent?: boolean
   organizer?: { name: string } | null
 }
 
@@ -790,9 +791,11 @@ function EventFormDialog({ open, onOpenChange, event, onSaved }: {
     quota: 100,
     isPublished: true,
     isRegistrationOpen: true,
+    isPublicEvent: false,
   })
   const [saving, setSaving] = React.useState(false)
   const [uploading, setUploading] = React.useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   React.useEffect(() => {
     if (event) {
@@ -815,6 +818,7 @@ function EventFormDialog({ open, onOpenChange, event, onSaved }: {
         quota: event.quota,
         isPublished: event.isPublished,
         isRegistrationOpen: event.isRegistrationOpen,
+        isPublicEvent: event.isPublicEvent ?? false,
       })
     } else {
       const today = new Date()
@@ -826,6 +830,7 @@ function EventFormDialog({ open, onOpenChange, event, onSaved }: {
         startDate: todayStr, startTime: '09:00',
         endDate: todayStr, endTime: '12:00',
         quota: 100, isPublished: true, isRegistrationOpen: true,
+        isPublicEvent: false,
       })
     }
   }, [event, open])
@@ -871,6 +876,7 @@ function EventFormDialog({ open, onOpenChange, event, onSaved }: {
         quota: Number(form.quota) || 100,
         isPublished: form.isPublished,
         isRegistrationOpen: form.isRegistrationOpen,
+        isPublicEvent: form.isPublicEvent,
       }
       const url = event ? `/api/events?id=${event.id}` : '/api/events'
       const method = event ? 'PATCH' : 'POST'
@@ -910,25 +916,33 @@ function EventFormDialog({ open, onOpenChange, event, onSaved }: {
               </div>
               <div className="space-y-2 flex-1">
                 <input
+                  ref={fileInputRef}
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  id="event-banner-upload"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBannerUpload(f) }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) handleBannerUpload(f)
+                    e.target.value = ''
+                  }}
                 />
-                <label htmlFor="event-banner-upload">
-                  <Button type="button" variant="outline" size="sm" disabled={uploading} className="cursor-pointer">
-                    {uploading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-2 h-3.5 w-3.5" />}
-                    Upload Banner
-                  </Button>
-                </label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-2 h-3.5 w-3.5" />}
+                  Upload Banner
+                </Button>
                 <div className="flex items-center gap-2">
                   <Link2 className="h-3 w-3 text-muted-foreground" />
                   <Input
                     placeholder="atau tempel URL gambar..."
-                    value={form.coverImage.startsWith('/uploads/') ? '' : form.coverImage}
+                    value={form.coverImage}
                     onChange={(e) => setForm({ ...form, coverImage: e.target.value })}
-                    className="h-8 text-xs"
+                    className="h-8 text-xs font-mono"
                   />
                 </div>
                 {form.coverImage && (
@@ -1060,6 +1074,23 @@ function EventFormDialog({ open, onOpenChange, event, onSaved }: {
                   onCheckedChange={(c) => setForm({ ...form, isRegistrationOpen: c })}
                 />
                 <Label className="text-sm cursor-pointer">Buka Pendaftaran Online</Label>
+              </div>
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-border p-3">
+                <div>
+                  <Label className="text-sm font-semibold cursor-pointer">Terbuka Untuk Umum (Masyarakat & Non-Anggota)</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {form.isPublicEvent
+                      ? 'Siapa saja (umum/non-anggota) dapat mendaftar dengan mengisi formulir publik.'
+                      : 'Khusus untuk Anggota terdaftar IAA (wajib login sebagai Anggota).'}
+                  </p>
+                </div>
+                <Switch
+                  checked={form.isPublicEvent}
+                  onCheckedChange={(c) => setForm({ ...form, isPublicEvent: c })}
+                />
               </div>
             </div>
           </div>

@@ -26,8 +26,8 @@ export async function GET(req: NextRequest) {
   const where: any = {}
   if (search) {
     where.OR = [
-      { name: { contains: search, mode: 'insensitive' } },
-      { description: { contains: search, mode: 'insensitive' } },
+      { name: { contains: search } },
+      { description: { contains: search } },
     ]
   }
 
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { name, description, imageUrl, fileUrl, isDefault } = body
+    const { name, description, imageUrl, fileUrl, layoutConfig, isDefault } = body
     if (!name) return NextResponse.json({ error: 'Nama wajib diisi' }, { status: 400 })
 
     // If setting as default, unset others
@@ -67,7 +67,14 @@ export async function POST(req: NextRequest) {
     }
 
     const template = await db.certificateTemplate.create({
-      data: { name, description: description || null, imageUrl: imageUrl || null, fileUrl: fileUrl || null, isDefault: !!isDefault },
+      data: {
+        name,
+        description: description || null,
+        imageUrl: imageUrl || null,
+        fileUrl: fileUrl || null,
+        layoutConfig: typeof layoutConfig === 'object' ? JSON.stringify(layoutConfig) : (layoutConfig || null),
+        isDefault: !!isDefault,
+      },
     })
 
     await db.auditLog.create({
@@ -95,7 +102,7 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { name, description, imageUrl, fileUrl, isDefault } = body
+    const { name, description, imageUrl, fileUrl, layoutConfig, isDefault } = body
 
     if (isDefault) {
       await db.certificateTemplate.updateMany({ where: { id: { not: id } }, data: { isDefault: false } })
@@ -108,6 +115,9 @@ export async function PATCH(req: NextRequest) {
         ...(description !== undefined && { description }),
         ...(imageUrl !== undefined && { imageUrl }),
         ...(fileUrl !== undefined && { fileUrl }),
+        ...(layoutConfig !== undefined && {
+          layoutConfig: typeof layoutConfig === 'object' ? JSON.stringify(layoutConfig) : layoutConfig,
+        }),
         ...(isDefault !== undefined && { isDefault }),
       },
     })

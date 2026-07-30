@@ -57,10 +57,10 @@ export async function GET(req: NextRequest) {
   const where: any = {}
   if (search) {
     where.OR = [
-      { fullName: { contains: search, mode: 'insensitive' } },
-      { memberNumber: { contains: search, mode: 'insensitive' } },
+      { fullName: { contains: search } },
+      { memberNumber: { contains: search } },
       { nip: { contains: search } },
-      { user: { email: { contains: search, mode: 'insensitive' } } },
+      { user: { email: { contains: search } } },
     ]
   }
   if (role) where.user = { ...where.user, role: role as any }

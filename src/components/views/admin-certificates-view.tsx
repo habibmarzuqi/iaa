@@ -302,20 +302,23 @@ function CreateCertDialog({ open, onOpenChange, onCreated }: {
 
   React.useEffect(() => {
     if (open) {
-      // Fetch members and events via admin dashboard isn't available; reuse members endpoint with workaround
-      // Since /api/members returns current user's member, we need a different endpoint.
-      // For simplicity, fetch via dashboard stats recentMembers and via events list
       Promise.all([
-        fetch('/api/dashboard').then((r) => r.json()),
-        fetch('/api/events?limit=50').then((r) => r.json()),
-      ]).then(([d, e]) => {
-        // Get full member list from dashboard recentMembers + extra: use a separate fetch via prisma
-        // For now, use recent + lookup by admin endpoint
-        // Better: add /api/members/list endpoint? Let's fetch via a simple workaround:
-        fetch('/api/members-list').then((r) => r.json()).then((ml) => {
-          setMembers(ml.members ?? [])
-        }).catch(() => setMembers([]))
-        setEvents(e.events ?? [])
+        fetch('/api/members-list').then((r) => r.json()).catch(() => ({ members: [] })),
+        fetch('/api/events?limit=100').then((r) => r.json()).catch(() => ({ events: [] })),
+      ]).then(([ml, e]) => {
+        setMembers(ml.members ?? [])
+        const now = new Date().getTime()
+        const rawEvents = e.events ?? []
+        const sorted = rawEvents.sort((a: any, b: any) => {
+          const tA = new Date(a.startDate).getTime()
+          const tB = new Date(b.startDate).getTime()
+          const upA = tA >= now
+          const upB = tB >= now
+          if (upA && !upB) return -1
+          if (!upA && upB) return 1
+          return tB - tA
+        })
+        setEvents(sorted)
       })
     }
   }, [open])
@@ -327,10 +330,14 @@ function CreateCertDialog({ open, onOpenChange, onCreated }: {
     }
     setSaving(true)
     try {
+      const payload = {
+        ...form,
+        eventId: form.eventId && form.eventId !== 'none' ? form.eventId : undefined,
+      }
       const res = await fetch('/api/certificates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       })
       const d = await res.json()
       if (!res.ok) {
@@ -340,8 +347,8 @@ function CreateCertDialog({ open, onOpenChange, onCreated }: {
       toast.success(`Sertifikat ${d.certificate.certificateNumber} berhasil dibuat`)
       onCreated()
       setForm({ memberId: '', eventId: '', title: '', description: '', template: 'default', issuedAt: new Date().toISOString().slice(0, 10) })
-    } catch {
-      toast.error('Terjadi kesalahan')
+    } catch (e: any) {
+      toast.error('Terjadi kesalahan: ' + (e.message || 'Error'))
     } finally {
       setSaving(false)
     }
@@ -372,16 +379,43 @@ function CreateCertDialog({ open, onOpenChange, onCreated }: {
           </div>
 
           <div className="space-y-2">
-            <Label>Kegiatan Terkait (opsional)</Label>
-            <Select value={form.eventId} onValueChange={(v) => setForm({ ...form, eventId: v })}>
-              <SelectTrigger><SelectValue placeholder="Tanpa kegiatan" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Tanpa kegiatan</SelectItem>
-                {events.map((e: any) => (
-                  <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
-                ))}
+            <Label className="flex items-center gap-1.5">
+              <Calendar className="h-4 w-4 text-gold" /> Pilih Kegiatan (Mendatang & Aktif)
+            </Label>
+            <Select
+              value={form.eventId || 'none'}
+              onValueChange={(v) => {
+                const targetId = v === 'none' ? '' : v
+                const selectedEv = events.find((ev) => ev.id === targetId)
+                if (selectedEv) {
+                  setForm((f) => ({
+                    ...f,
+                    eventId: targetId,
+                    title: `Sertifikat ${selectedEv.title}`,
+                    issuedAt: selectedEv.startDate ? selectedEv.startDate.slice(0, 10) : f.issuedAt,
+                  }))
+                } else {
+                  setForm((f) => ({ ...f, eventId: targetId }))
+                }
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="-- Pilih Kegiatan dari Dropdown --" /></SelectTrigger>
+              <SelectContent className="max-h-60">
+                <SelectItem value="none">-- Tanpa Kegiatan Spesifik --</SelectItem>
+                {events.map((e: any) => {
+                  const isUpcoming = new Date(e.startDate) >= new Date()
+                  const dStr = new Date(e.startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                  return (
+                    <SelectItem key={e.id} value={e.id}>
+                      {isUpcoming ? '🟢 [Mendatang] ' : '⚪ '} [{e.eventType}] {e.title} ({dStr})
+                    </SelectItem>
+                  )
+                })}
               </SelectContent>
             </Select>
+            <p className="text-[10px] text-muted-foreground">
+              Memilih kegiatan dari dropdown akan otomatis mengisi Judul Sertifikat dan Tanggal Terbit kegiatan.
+            </p>
           </div>
 
           <div className="space-y-2">

@@ -31,11 +31,43 @@ export function NewsDetailView({ slug }: { slug: string }) {
       fetch('/api/articles?limit=4').then((r) => r.json()),
     ])
       .then(([d, r]) => {
-        if (d.article) setArticle(d.article)
+        if (d.article) {
+          setArticle(d.article)
+          if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href)
+            url.searchParams.set('news', d.article.slug)
+            window.history.replaceState({}, '', url.toString())
+          }
+        }
         setRelated((r.articles ?? []).filter((a: Article) => a.slug !== slug).slice(0, 3))
       })
       .finally(() => setLoading(false))
   }, [slug])
+
+  const handleShare = async () => {
+    if (!article) return
+    const shareUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}/?news=${article.slug}`
+      : `https://iaa-digital.org/?news=${article.slug}`
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: article.title,
+          text: article.title,
+          url: shareUrl,
+        })
+        return
+      } catch {}
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      toast.success('Tautan artikel berhasil disalin: ' + shareUrl)
+    } catch {
+      toast.error('Gagal menyalin tautan')
+    }
+  }
 
   if (loading) {
     return (
@@ -121,7 +153,7 @@ export function NewsDetailView({ slug }: { slug: string }) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => toast.info('Tautan artikel disalin ke clipboard')}
+            onClick={handleShare}
             className="ml-auto border-gold/40 text-gold hover:bg-gold/10"
           >
             <Share2 className="mr-2 h-3.5 w-3.5" /> Bagikan

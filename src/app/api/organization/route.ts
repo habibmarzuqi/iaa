@@ -44,18 +44,28 @@ export async function GET(req: NextRequest) {
     if (!isAdmin(user)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    const members = await db.organizationMember.findMany({
-      orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
-    })
-    return NextResponse.json({ members, total: members.length })
+    const [members, categories] = await Promise.all([
+      db.organizationMember.findMany({
+        orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
+      }),
+      db.orgCategory.findMany({
+        orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+      }),
+    ])
+    return NextResponse.json({ members, categories, total: members.length })
   }
 
   // Public list (active only, ordered by `order`)
-  const members = await db.organizationMember.findMany({
-    where: { isActive: true },
-    orderBy: { order: 'asc' },
-  })
-  return NextResponse.json({ members })
+  const [members, categories] = await Promise.all([
+    db.organizationMember.findMany({
+      where: { isActive: true },
+      orderBy: { order: 'asc' },
+    }),
+    db.orgCategory.findMany({
+      orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+    }),
+  ])
+  return NextResponse.json({ members, categories })
 }
 
 export async function POST(req: NextRequest) {

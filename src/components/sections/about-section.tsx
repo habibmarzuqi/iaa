@@ -1,9 +1,19 @@
 'use client'
 
+import * as React from 'react'
 import { motion } from 'framer-motion'
 import { Target, Eye, Award, Users, BookOpen, Globe2 } from 'lucide-react'
 
 export function AboutSection() {
+  const [settings, setSettings] = React.useState<Record<string, string>>({})
+
+  React.useEffect(() => {
+    fetch('/api/settings', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setSettings(d.settings || {}))
+      .catch(() => {})
+  }, [])
+
   return (
     <section className="py-20 lg:py-28 bg-background">
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
@@ -25,21 +35,19 @@ export function AboutSection() {
                 <span className="text-gradient-navy">Arsiparis Indonesia</span>
               </h2>
               <p className="text-muted-foreground leading-relaxed">
-                Ikatan Arsiparis ANRI (IAA) adalah organisasi profesi resmi yang beranggotakan arsiparis di lingkungan Arsip Nasional Republik Indonesia (ANRI) dan instansi pemerintah lainnya. Berdiri sebagai wadah peningkatan kompetensi, pembelaan kepentingan profesi, serta kontribusi pada pembangunan sistem kearsipan nasional yang modern dan profesional.
-              </p>
-              <p className="text-muted-foreground leading-relaxed">
-                Sejak berdirinya, IAA aktif menyelenggarakan pelatihan, seminar, webinar, sertifikasi, serta menghasilkan publikasi ilmiah di bidang kearsipan. Organisasi ini juga menjadi mitra strategis pemerintah dalam merumuskan kebijakan tata kelola arsip dan informasi publik.
+                {settings['site.description'] || 'Ikatan Arsiparis ANRI (IAA) adalah organisasi profesi resmi yang beranggotakan arsiparis di lingkungan Arsip Nasional Republik Indonesia (ANRI) dan instansi pemerintah lainnya.'}
               </p>
 
-              <div className="grid grid-cols-3 gap-4 pt-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4">
                 {[
-                  { label: 'Berdiri', value: '1973' },
-                  { label: 'Anggota', value: '2,400+' },
-                  { label: 'Provinsi', value: '34' },
-                ].map((s) => (
-                  <div key={s.label} className="rounded-xl bg-muted/50 p-3 text-center">
-                    <div className="text-2xl font-extrabold text-gradient-navy font-display">{s.value}</div>
-                    <div className="text-[11px] text-muted-foreground uppercase tracking-wide mt-0.5">{s.label}</div>
+                  { value: settings['about.stats.stat1Value'] || '2,400+', label: settings['about.stats.stat1Label'] || 'Anggota Aktif' },
+                  { value: settings['about.stats.stat2Value'] || '180+', label: settings['about.stats.stat2Label'] || 'Kegiatan / Tahun' },
+                  { value: settings['about.stats.stat3Value'] || '5,600+', label: settings['about.stats.stat3Label'] || 'Sertifikat Terbit' },
+                  { value: settings['about.stats.stat4Value'] || '1,200+', label: settings['about.stats.stat4Label'] || 'Koleksi Digital' },
+                ].map((s, i) => (
+                  <div key={i} className="rounded-xl bg-muted/50 p-3 text-center">
+                    <div className="text-xl font-extrabold text-gradient-navy font-display">{s.value}</div>
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5 line-clamp-1">{s.label}</div>
                   </div>
                 ))}
               </div>

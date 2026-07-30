@@ -38,6 +38,16 @@ const SETTING_GROUPS = {
       { key: 'site.shortName', label: 'Nama Singkat', type: 'text', placeholder: 'IAA' },
       { key: 'site.tagline', label: 'Tagline', type: 'text', placeholder: 'Ikatan Arsiparis ANRI' },
       { key: 'site.description', label: 'Deskripsi Situs', type: 'textarea', placeholder: 'Deskripsi singkat organisasi...' },
+      {
+        key: 'hero.style',
+        label: 'Tampilan Banner Hero (Beranda)',
+        type: 'select',
+        options: [
+          { value: 'carousel', label: 'Carousel Interaktif Banner (Desain Modern, Slider & Animasi)' },
+          { value: 'classic', label: 'Hero Split Screen Classic (Tampilan Beranda Asli / Statis)' },
+        ],
+        hint: 'Pilih tipe Tampilan Hero pada Halaman Beranda Publik',
+      },
     ],
   },
   branding: {
@@ -107,14 +117,14 @@ const SETTING_GROUPS = {
       { key: 'about.vision', label: 'Visi', type: 'textarea', hint: 'Pernyataan visi organisasi' },
       { key: 'about.mission', label: 'Misi', type: 'textarea', hint: 'Satu misi per baris (akan dinomori otomatis di halaman publik)' },
       { key: 'about.values', label: 'Nilai Organisasi', type: 'textarea', hint: 'Format: Judul|Deskripsi (pisahkan tiap nilai dengan baris baru)' },
-      { key: 'about.stats.foundedYear', label: 'Statistik: Tahun Berdiri (nilai)', type: 'text', placeholder: '1973' },
-      { key: 'about.stats.foundedYearLabel', label: 'Statistik: Tahun Berdiri (label)', type: 'text', placeholder: 'Tahun Berdiri' },
-      { key: 'about.stats.yearsActive', label: 'Statistik: Tahun Berkarya (nilai)', type: 'text', placeholder: '53' },
-      { key: 'about.stats.yearsActiveLabel', label: 'Statistik: Tahun Berkarya (label)', type: 'text', placeholder: 'Tahun Berkarya' },
-      { key: 'about.stats.activeMembers', label: 'Statistik: Anggota Aktif (nilai)', type: 'text', placeholder: '2,400+' },
-      { key: 'about.stats.activeMembersLabel', label: 'Statistik: Anggota Aktif (label)', type: 'text', placeholder: 'Anggota Aktif' },
-      { key: 'about.stats.provinces', label: 'Statistik: Provinsi (nilai)', type: 'text', placeholder: '34' },
-      { key: 'about.stats.provincesLabel', label: 'Statistik: Provinsi (label)', type: 'text', placeholder: 'Provinsi' },
+      { key: 'about.stats.stat1Value', label: 'Statistik 1 (Nilai)', type: 'text', placeholder: '2,400+' },
+      { key: 'about.stats.stat1Label', label: 'Statistik 1 (Label)', type: 'text', placeholder: 'Anggota Aktif' },
+      { key: 'about.stats.stat2Value', label: 'Statistik 2 (Nilai)', type: 'text', placeholder: '180+' },
+      { key: 'about.stats.stat2Label', label: 'Statistik 2 (Label)', type: 'text', placeholder: 'Kegiatan / Tahun' },
+      { key: 'about.stats.stat3Value', label: 'Statistik 3 (Nilai)', type: 'text', placeholder: '5,600+' },
+      { key: 'about.stats.stat3Label', label: 'Statistik 3 (Label)', type: 'text', placeholder: 'Sertifikat Terbit' },
+      { key: 'about.stats.stat4Value', label: 'Statistik 4 (Nilai)', type: 'text', placeholder: '1,200+' },
+      { key: 'about.stats.stat4Label', label: 'Statistik 4 (Label)', type: 'text', placeholder: 'Koleksi Digital' },
     ],
   },
 }
@@ -277,6 +287,33 @@ export function AdminSiteSettingsView() {
       )
     }
 
+    if (field.type === 'select') {
+      return (
+        <div key={field.key} className="space-y-2">
+          <Label className="flex items-center gap-1.5">
+            {field.label}
+            {isDirty && <Badge variant="outline" className="text-[9px] border-gold/40 text-gold bg-gold/5">modified</Badge>}
+          </Label>
+          <Select
+            value={value || field.options?.[0]?.value || ''}
+            onValueChange={(val) => setSettings((s) => ({ ...s, [field.key]: val }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={field.placeholder || 'Pilih opsi'} />
+            </SelectTrigger>
+            <SelectContent>
+              {field.options?.map((opt: any) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {field.hint && <p className="text-[10px] text-muted-foreground">{field.hint}</p>}
+        </div>
+      )
+    }
+
     if (field.type === 'toggle') {
       const isEnabled = value === 'true' || value === true
       const ToggleIcon = field.toggleIcon ? TOGGLE_ICONS[field.toggleIcon] : null
@@ -434,6 +471,13 @@ export function AdminSiteSettingsView() {
                       <h3 className="font-display font-bold text-navy dark:text-white">{group.label}</h3>
                     </div>
                     {group.fields.map(renderField)}
+
+                    {key === 'general' && settings['hero.style'] !== 'classic' && (
+                      <HeroCarouselManager
+                        slidesJson={settings['hero.carousel.slides'] || ''}
+                        onChange={(newJson) => setSettings((s) => ({ ...s, ['hero.carousel.slides']: newJson }))}
+                      />
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -682,5 +726,245 @@ function CreateSettingDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function HeroCarouselManager({
+  slidesJson,
+  onChange,
+}: {
+  slidesJson: string
+  onChange: (newJson: string) => void
+}) {
+  const [slides, setSlides] = React.useState<any[]>([])
+  const [uploadingIndex, setUploadingIndex] = React.useState<number | null>(null)
+
+  React.useEffect(() => {
+    try {
+      if (slidesJson) {
+        const parsed = JSON.parse(slidesJson)
+        if (Array.isArray(parsed)) setSlides(parsed)
+      }
+    } catch {}
+  }, [slidesJson])
+
+  const updateSlide = (index: number, key: string, value: any) => {
+    const updated = [...slides]
+    updated[index] = { ...updated[index], [key]: value }
+    setSlides(updated)
+    onChange(JSON.stringify(updated))
+  }
+
+  const handleUploadImage = async (index: number, file: File) => {
+    setUploadingIndex(index)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('type', 'carousel-banner')
+      const res = await fetch('/api/settings/upload', { method: 'POST', body: fd })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal upload banner'); return }
+      updateSlide(index, 'image', d.url)
+      toast.success('Gambar banner carousel terunggah')
+    } catch {
+      toast.error('Gagal upload gambar banner')
+    } finally {
+      setUploadingIndex(null)
+    }
+  }
+
+  const addSlide = () => {
+    const newSlide = {
+      id: `slide-${Date.now()}`,
+      image: '',
+      badge: '✨ Sorotan Baru',
+      title: 'Judul Slide Carousel Baru',
+      subtitle: 'Deskripsi singkat mengenai kegiatan atau pengumuman penting...',
+      primaryBtnText: 'Pelajari Lebih Lanjut',
+      primaryView: 'about',
+      secondaryBtnText: 'Hubungi Kami',
+      secondaryView: 'contact',
+    }
+    const updated = [...slides, newSlide]
+    setSlides(updated)
+    onChange(JSON.stringify(updated))
+    toast.success('Slide carousel ditambahkan')
+  }
+
+  const removeSlide = (index: number) => {
+    if (slides.length <= 1) { toast.error('Minimal harus ada 1 slide carousel'); return }
+    const updated = slides.filter((_, i) => i !== index)
+    setSlides(updated)
+    onChange(JSON.stringify(updated))
+    toast.success('Slide dihapus')
+  }
+
+  const moveSlide = (index: number, direction: 'up' | 'down') => {
+    const target = direction === 'up' ? index - 1 : index + 1
+    if (target < 0 || target >= slides.length) return
+    const updated = [...slides]
+    const temp = updated[index]
+    updated[index] = updated[target]
+    updated[target] = temp
+    setSlides(updated)
+    onChange(JSON.stringify(updated))
+  }
+
+  const VIEW_OPTIONS = [
+    { value: 'login', label: 'Masuk / Daftar (Login)' },
+    { value: 'about', label: 'Tentang IAA' },
+    { value: 'event-list', label: 'Agenda Kegiatan' },
+    { value: 'library', label: 'Digital Library' },
+    { value: 'news-list', label: 'Berita & Artikel' },
+    { value: 'gallery', label: 'Galeri Foto' },
+    { value: 'faq', label: 'FAQ' },
+    { value: 'contact', label: 'Kontak Sekretariat' },
+    { value: 'verify-cert', label: 'Verifikasi Sertifikat' },
+  ]
+
+  return (
+    <div className="rounded-xl border border-gold/30 bg-gold/5 p-5 space-y-5 mt-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h4 className="font-display font-bold text-base text-navy dark:text-white flex items-center gap-2">
+            <ImageIcon className="h-5 w-5 text-gold" /> Kelola Slide Carousel Hero ({slides.length} Slide)
+          </h4>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Upload gambar banner, edit judul, deskripsi, dan tombol aksi pada setiap slide carousel beranda.
+          </p>
+        </div>
+        <Button size="sm" onClick={addSlide} className="bg-navy-gradient text-xs">
+          <Plus className="mr-1.5 h-3.5 w-3.5" /> Tambah Slide
+        </Button>
+      </div>
+
+      <div className="space-y-4">
+        {slides.map((slide, i) => (
+          <Card key={slide.id || i} className="overflow-hidden border border-border">
+            <div className="bg-muted p-3 flex items-center justify-between border-b border-border">
+              <span className="font-semibold text-xs text-navy dark:text-white flex items-center gap-2">
+                <Badge className="bg-gold text-navy font-bold text-[10px]">Slide #{i + 1}</Badge>
+                {slide.title || 'Untitled Slide'}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled={i === 0} onClick={() => moveSlide(i, 'up')}>
+                  ↑
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled={i === slides.length - 1} onClick={() => moveSlide(i, 'down')}>
+                  ↓
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-600 hover:bg-red-50" onClick={() => removeSlide(i)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            <CardContent className="p-4 space-y-4">
+              {/* Gambar Banner Upload */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">Gambar Banner Slide (Opsional)</Label>
+                <div className="flex items-start gap-4 flex-wrap sm:flex-nowrap">
+                  <div className="h-24 w-40 rounded-lg border border-border bg-muted overflow-hidden relative grid place-items-center flex-shrink-0">
+                    {slide.image ? (
+                      <img src={slide.image} alt={slide.title} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-muted-foreground p-2 text-center">
+                        <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+                        <span className="text-[10px]">Default Gradient</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2 min-w-0 w-full">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id={`upload-slide-${i}`}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (f) handleUploadImage(i, f)
+                        e.target.value = ''
+                      }}
+                    />
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <label htmlFor={`upload-slide-${i}`} className="cursor-pointer">
+                        <div className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:border-gold/40 transition-colors">
+                          {uploadingIndex === i ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                          {uploadingIndex === i ? 'Mengunggah...' : 'Upload Gambar Banner'}
+                        </div>
+                      </label>
+                      {slide.image && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs text-red-600"
+                          onClick={() => updateSlide(i, 'image', '')}
+                        >
+                          Hapus Gambar
+                        </Button>
+                      )}
+                    </div>
+                    <Input
+                      value={slide.image || ''}
+                      onChange={(e) => updateSlide(i, 'image', e.target.value)}
+                      placeholder="URL Gambar Banner (cth: /uploads/branding/banner1.jpg)"
+                      className="font-mono text-xs"
+                    />
+                    <p className="text-[10px] text-muted-foreground">Rekomendasi rasio 16:9 (Resolusi min 1200x600px)</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Input Text */}
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Badge Header</Label>
+                  <Input value={slide.badge || ''} onChange={(e) => updateSlide(i, 'badge', e.target.value)} placeholder="cth: 🎉 Portal Resmi IAA" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Judul Utama Slide *</Label>
+                  <Input value={slide.title || ''} onChange={(e) => updateSlide(i, 'title', e.target.value)} placeholder="Judul slide banner" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Deskripsi / Subtitle Slide</Label>
+                <Textarea rows={2} value={slide.subtitle || ''} onChange={(e) => updateSlide(i, 'subtitle', e.target.value)} placeholder="Deskripsi ringkas slide banner..." />
+              </div>
+
+              {/* Action Buttons setup */}
+              <div className="grid sm:grid-cols-2 gap-3 border-t border-border pt-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-gold">Tombol Utama (Primary)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input value={slide.primaryBtnText || ''} onChange={(e) => updateSlide(i, 'primaryBtnText', e.target.value)} placeholder="Teks Tombol" />
+                    <Select value={slide.primaryView || 'login'} onValueChange={(val) => updateSlide(i, 'primaryView', val)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {VIEW_OPTIONS.map((opt) => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-muted-foreground">Tombol Kedua (Secondary)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input value={slide.secondaryBtnText || ''} onChange={(e) => updateSlide(i, 'secondaryBtnText', e.target.value)} placeholder="Teks Tombol" />
+                    <Select value={slide.secondaryView || 'about'} onValueChange={(val) => updateSlide(i, 'secondaryView', val)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {VIEW_OPTIONS.map((opt) => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
   )
 }

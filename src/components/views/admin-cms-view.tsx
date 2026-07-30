@@ -26,7 +26,7 @@ import {
   Plus, Search, Edit2, Trash2, Eye, EyeOff, Pin, Star, Clock,
   ExternalLink, Save, X, Loader2, Filter, ArrowRight,
   History, Search as SeoIcon, ImagePlus, UserCircle, AlertCircle,
-  Globe, FileSearch, Check, CheckSquare,
+  Globe, FileSearch, Check, CheckSquare, Upload, Link2, HelpCircle,
 } from 'lucide-react'
 import { useApp } from '@/lib/store'
 import { formatDate, formatDateTime, timeAgo } from '@/lib/helpers'
@@ -38,7 +38,7 @@ import { RevisionHistoryDialog } from '@/components/revision-history-dialog'
 import { TagInput } from '@/components/tag-input'
 import { SortablePhotoGrid } from '@/components/sortable-photo-grid'
 
-type ContentType = 'articles' | 'events' | 'library' | 'gallery' | 'organization' | 'announcements'
+type ContentType = 'articles' | 'events' | 'library' | 'gallery' | 'organization' | 'announcements' | 'faq'
 
 const CONTENT_TYPES: { id: ContentType; label: string; icon: any; desc: string }[] = [
   { id: 'articles', label: 'Berita & Artikel', icon: FileText, desc: 'Berita kegiatan, artikel, publikasi' },
@@ -47,6 +47,7 @@ const CONTENT_TYPES: { id: ContentType; label: string; icon: any; desc: string }
   { id: 'gallery', label: 'Galeri Foto', icon: ImageIcon, desc: 'Album & dokumentasi foto' },
   { id: 'organization', label: 'Pengurus', icon: Users, desc: 'Struktur kepengurusan organisasi' },
   { id: 'announcements', label: 'Pengumuman', icon: Megaphone, desc: 'Banner, popup, running text' },
+  { id: 'faq', label: 'FAQ', icon: HelpCircle, desc: 'Pertanyaan & jawaban umum' },
 ]
 
 export function AdminCMSView() {
@@ -56,10 +57,10 @@ export function AdminCMSView() {
     <AdminShell
       activeKey="cms"
       title="Manajemen Website Publik"
-      subtitle="Kelola seluruh konten website publik: berita, agenda, library, galeri, pengurus, dan pengumuman"
+      subtitle="Kelola seluruh konten website publik: berita, agenda, library, galeri, pengurus, pengumuman, dan FAQ"
     >
       {/* Content type selector */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 mb-6">
         {CONTENT_TYPES.map((c) => (
           <button
             key={c.id}
@@ -96,6 +97,7 @@ export function AdminCMSView() {
           {active === 'gallery' && <GalleryManager />}
           {active === 'organization' && <OrganizationManager />}
           {active === 'announcements' && <AnnouncementsManager />}
+          {active === 'faq' && <FaqManager />}
         </motion.div>
       </AnimatePresence>
     </AdminShell>
@@ -1290,15 +1292,18 @@ function GalleryManager() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 p-4">
             {albums.map((a, i) => (
               <motion.div key={a.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}>
-                <Card className="overflow-hidden hover:shadow-premium transition-shadow">
+                <Card className="overflow-hidden hover:shadow-premium transition-shadow group">
                   <div className="relative h-32 bg-navy-gradient overflow-hidden cursor-pointer" onClick={() => openManage(a)}>
-                    <div className="absolute inset-0 bg-grid opacity-30" />
-                    <div className="absolute inset-0 grid place-items-center">
-                      <ImageIcon className="h-10 w-10 text-white/40" />
-                    </div>
-                    <Badge className="absolute top-2 right-2 bg-white/20 text-white border-white/30 backdrop-blur text-[10px]">{a._count?.photos ?? 0} foto</Badge>
+                    {a.coverImage || a.photos?.[0]?.url ? (
+                      <img src={a.coverImage || a.photos?.[0]?.url} alt={a.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    ) : (
+                      <div className="absolute inset-0 grid place-items-center">
+                        <ImageIcon className="h-10 w-10 text-white/40" />
+                      </div>
+                    )}
+                    <Badge className="absolute top-2 right-2 bg-black/60 text-white border-white/30 backdrop-blur text-[10px]">{a._count?.photos ?? 0} foto</Badge>
                     <div className="absolute bottom-2 left-2 right-2 text-center">
-                      <span className="inline-flex items-center gap-1 rounded-md bg-black/40 backdrop-blur px-2 py-1 text-[10px] text-white">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-black/60 backdrop-blur px-2 py-1 text-[10px] text-white">
                         <ImagePlus className="h-3 w-3" /> Kelola Foto
                       </span>
                     </div>
@@ -1418,6 +1423,22 @@ function GalleryManager() {
                       onToggleSelect={togglePhotoSelection}
                       onDelete={deletePhoto}
                       onReorder={handleReorder}
+                      onEditTitle={(p) => {
+                        const newTitle = prompt('Ubah judul / keterangan foto:', p.title || '')
+                        if (newTitle !== null) {
+                          fetch(`/api/gallery?action=photo&id=${p.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title: newTitle.trim() }),
+                          })
+                            .then((r) => r.json())
+                            .then(() => {
+                              toast.success('Judul foto diperbarui')
+                              if (manageAlbum) loadPhotos(manageAlbum.id)
+                            })
+                            .catch(() => toast.error('Gagal update foto'))
+                        }
+                      }}
                     />
                   )}
                 </div>
@@ -1435,6 +1456,8 @@ function AlbumDialog({ open, onOpenChange, album, onSaved }: {
 }) {
   const [form, setForm] = React.useState({ title: '', description: '', coverImage: '' })
   const [saving, setSaving] = React.useState(false)
+  const [uploadingCover, setUploadingCover] = React.useState(false)
+  const coverInputRef = React.useRef<HTMLInputElement>(null)
 
   React.useEffect(() => {
     if (album) {
@@ -1443,6 +1466,23 @@ function AlbumDialog({ open, onOpenChange, album, onSaved }: {
       setForm({ title: '', description: '', coverImage: '' })
     }
   }, [album, open])
+
+  const handleCoverUpload = async (file: File) => {
+    setUploadingCover(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/events-admin/upload', { method: 'POST', body: fd })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal upload sampul album'); return }
+      setForm((f) => ({ ...f, coverImage: d.url }))
+      toast.success('Foto sampul album terunggah')
+    } catch {
+      toast.error('Gagal upload sampul album')
+    } finally {
+      setUploadingCover(false)
+    }
+  }
 
   const submit = async () => {
     if (!form.title) { toast.error('Judul album wajib diisi'); return }
@@ -1463,22 +1503,72 @@ function AlbumDialog({ open, onOpenChange, album, onSaved }: {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-navy dark:text-white">
-            <ImageIcon className="h-5 w-5 text-gold" /> {album ? 'Edit Album' : 'Tambah Album'}
+            <ImageIcon className="h-5 w-5 text-gold" /> {album ? 'Edit Album' : 'Tambah Album Baru'}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          <Field label="Judul *" value={form.title} onChange={(v) => setForm({ ...form, title: v })} />
+          {/* Cover image upload & preview */}
           <div className="space-y-2">
-            <Label>Deskripsi</Label>
-            <Textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <Label>Foto Sampul Album (Cover)</Label>
+            <div className="h-32 rounded-lg border border-border bg-muted overflow-hidden relative group">
+              {form.coverImage ? (
+                <img src={form.coverImage} alt="Cover" className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full grid place-items-center text-muted-foreground">
+                  <div className="flex flex-col items-center gap-1">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
+                    <span className="text-xs">Belum ada foto sampul</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) handleCoverUpload(f)
+                  e.target.value = ''
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploadingCover}
+                onClick={() => coverInputRef.current?.click()}
+              >
+                {uploadingCover ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-1.5 h-3.5 w-3.5" />}
+                Upload Sampul
+              </Button>
+              {form.coverImage && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-600 text-xs"
+                  onClick={() => setForm({ ...form, coverImage: '' })}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Hapus Sampul
+                </Button>
+              )}
+            </div>
           </div>
-          <Field label="Cover Image URL" value={form.coverImage} onChange={(v) => setForm({ ...form, coverImage: v })} placeholder="https://..." />
+
+          <Field label="Judul Album *" value={form.title} onChange={(v) => setForm({ ...form, title: v })} placeholder="Contoh: Raker Sektor Kearsipan 2026" />
+          <div className="space-y-2">
+            <Label>Deskripsi / Keterangan Album</Label>
+            <Textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Ringkasan dokumentasi kegiatan..." />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
           <Button onClick={submit} disabled={saving} className="bg-navy-gradient">
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Simpan
+            Simpan Album
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1493,24 +1583,45 @@ interface OrgMember {
   bio: string | null; order: number; isActive: boolean
 }
 
+interface OrgCategoryItem {
+  id: string
+  name: string
+  description: string | null
+  order: number
+}
+
 function OrganizationManager() {
   const { setView } = useApp()
   const [items, setItems] = React.useState<OrgMember[]>([])
+  const [categories, setCategories] = React.useState<OrgCategoryItem[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [editing, setEditing] = React.useState<OrgMember | null>(null)
-  const [dialogOpen, setDialogOpen] = React.useState(false)
+
+  const [activeTab, setActiveTab] = React.useState<'members' | 'categories'>('members')
+
+  // Member editing state
+  const [editingMember, setEditingMember] = React.useState<OrgMember | null>(null)
+  const [memberDialogOpen, setMemberDialogOpen] = React.useState(false)
+
+  // Category editing state
+  const [editingCategory, setEditingCategory] = React.useState<OrgCategoryItem | null>(null)
+  const [categoryDialogOpen, setCategoryDialogOpen] = React.useState(false)
 
   const load = React.useCallback(() => {
     setLoading(true)
-    fetch('/api/organization?admin=true')
-      .then((r) => r.json())
-      .then((d) => setItems(d.members ?? []))
+    Promise.all([
+      fetch('/api/organization?admin=true').then((r) => r.json()),
+      fetch('/api/organization/categories').then((r) => r.json()),
+    ])
+      .then(([d, c]) => {
+        setItems(d.members ?? [])
+        setCategories(c.categories ?? [])
+      })
       .finally(() => setLoading(false))
   }, [])
 
   React.useEffect(() => { load() }, [load])
 
-  const remove = async (m: OrgMember) => {
+  const removeMember = async (m: OrgMember) => {
     if (!confirm(`Hapus pengurus "${m.name}"?`)) return
     try {
       await fetch(`/api/organization?id=${m.id}`, { method: 'DELETE' })
@@ -1519,69 +1630,231 @@ function OrganizationManager() {
     } catch { toast.error('Gagal menghapus') }
   }
 
+  const removeCategory = async (c: OrgCategoryItem) => {
+    if (!confirm(`Hapus kategori pengurus "${c.name}"?`)) return
+    try {
+      const res = await fetch(`/api/organization/categories?id=${c.id}`, { method: 'DELETE' })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal menghapus kategori'); return }
+      toast.success('Kategori pengurus dihapus')
+      load()
+    } catch { toast.error('Gagal menghapus') }
+  }
+
   return (
     <Card>
       <CardContent className="p-0">
-        <div className="flex justify-between items-center p-4 border-b border-border">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b border-border gap-3">
           <div>
-            <h3 className="font-semibold text-sm text-navy dark:text-white">Struktur Pengurus</h3>
-            <p className="text-xs text-muted-foreground">{items.length} pengurus terdaftar</p>
+            <h3 className="font-semibold text-sm text-navy dark:text-white">Struktur & Kategori Pengurus</h3>
+            <p className="text-xs text-muted-foreground">
+              Kelola daftar anggota pengurus dan buat/ubah kategori struktur organisasi
+            </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setView({ name: 'organization' })}>
-              <ExternalLink className="mr-2 h-3.5 w-3.5" /> Lihat Publik
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => setView({ name: 'organization' })}>
+              <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Lihat Publik
             </Button>
-            <Button onClick={() => { setEditing(null); setDialogOpen(true) }} className="bg-navy-gradient">
-              <Plus className="mr-2 h-4 w-4" /> Tambah Pengurus
-            </Button>
+            {activeTab === 'members' ? (
+              <Button onClick={() => { setEditingMember(null); setMemberDialogOpen(true) }} className="bg-navy-gradient" size="sm">
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Tambah Pengurus
+              </Button>
+            ) : (
+              <Button onClick={() => { setEditingCategory(null); setCategoryDialogOpen(true) }} className="bg-navy-gradient" size="sm">
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Tambah Kategori
+              </Button>
+            )}
           </div>
         </div>
 
-        {loading ? (
-          <div className="p-6 space-y-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}</div>
-        ) : items.length === 0 ? (
-          <EmptyState icon={Users} label="Belum ada pengurus" />
-        ) : (
-          <div className="divide-y divide-border max-h-[600px] overflow-y-auto scrollbar-premium">
-            {items.map((m, i) => (
-              <motion.div key={m.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.02 }} className="p-4 hover:bg-muted/30 flex items-center gap-3">
-                <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full bg-navy-gradient text-white text-xs font-semibold">
-                  {m.name.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                    <span className="font-semibold text-sm text-navy dark:text-white">{m.name}</span>
-                    <Badge variant="outline" className="text-[10px]">{m.category}</Badge>
-                    {!m.isActive && <Badge variant="outline" className="text-[10px] border-slate-400/40 text-slate-500">Nonaktif</Badge>}
+        {/* Navigation Tabs */}
+        <div className="flex border-b border-border bg-muted/30 px-4">
+          <button
+            type="button"
+            onClick={() => setActiveTab('members')}
+            className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === 'members'
+                ? 'border-gold text-gold bg-gold/5'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Users className="h-3.5 w-3.5" /> Daftar Pengurus ({items.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('categories')}
+            className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === 'categories'
+                ? 'border-gold text-gold bg-gold/5'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Filter className="h-3.5 w-3.5" /> Kelola Kategori ({categories.length})
+          </button>
+        </div>
+
+        {/* Tab 1: Members List */}
+        {activeTab === 'members' && (
+          loading ? (
+            <div className="p-6 space-y-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}</div>
+          ) : items.length === 0 ? (
+            <EmptyState icon={Users} label="Belum ada pengurus" />
+          ) : (
+            <div className="divide-y divide-border max-h-[600px] overflow-y-auto scrollbar-premium">
+              {items.map((m, i) => (
+                <motion.div key={m.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.02 }} className="p-4 hover:bg-muted/30 flex items-center gap-3">
+                  <div className="relative h-11 w-11 flex-shrink-0 rounded-full overflow-hidden border border-gold/40 bg-navy-gradient grid place-items-center shadow-sm">
+                    {m.photo ? (
+                      <img src={m.photo} alt={m.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-white text-xs font-semibold font-display">
+                        {m.name.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()}
+                      </span>
+                    )}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">{m.position} · urutan #{m.order}</div>
-                </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditing(m); setDialogOpen(true) }}>
-                    <Edit2 className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-600" onClick={() => remove(m)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="font-semibold text-sm text-navy dark:text-white">{m.name}</span>
+                      <Badge variant="outline" className="text-[10px]">{m.category}</Badge>
+                      {!m.isActive && <Badge variant="outline" className="text-[10px] border-slate-400/40 text-slate-500">Nonaktif</Badge>}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">{m.position} · urutan #{m.order}</div>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditingMember(m); setMemberDialogOpen(true) }}>
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-600" onClick={() => removeMember(m)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )
+        )}
+
+        {/* Tab 2: Categories List & CRUD */}
+        {activeTab === 'categories' && (
+          loading ? (
+            <div className="p-6 space-y-2">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}</div>
+          ) : categories.length === 0 ? (
+            <EmptyState icon={Filter} label="Belum ada kategori pengurus" />
+          ) : (
+            <div className="divide-y divide-border max-h-[600px] overflow-y-auto scrollbar-premium">
+              {categories.map((c, i) => {
+                const assignedCount = items.filter((m) => m.category === c.name).length
+                return (
+                  <motion.div key={c.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.02 }} className="p-4 hover:bg-muted/30 flex items-center gap-3">
+                    <div className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg bg-gold/10 text-gold font-bold text-xs">
+                      #{c.order}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                        <span className="font-semibold text-sm text-navy dark:text-white">{c.name}</span>
+                        <Badge variant="secondary" className="text-[10px]">{assignedCount} pengurus</Badge>
+                      </div>
+                      {c.description && <p className="text-[10px] text-muted-foreground">{c.description}</p>}
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditingCategory(c); setCategoryDialogOpen(true) }}>
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-600" onClick={() => removeCategory(c)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          )
         )}
       </CardContent>
 
-      <OrgMemberDialog open={dialogOpen} onOpenChange={setDialogOpen} member={editing} onSaved={() => { setDialogOpen(false); load() }} />
+      <OrgMemberDialog
+        open={memberDialogOpen}
+        onOpenChange={setMemberDialogOpen}
+        member={editingMember}
+        categories={categories}
+        onSaved={() => { setMemberDialogOpen(false); load() }}
+      />
+
+      <OrgCategoryDialog
+        open={categoryDialogOpen}
+        onOpenChange={setCategoryDialogOpen}
+        category={editingCategory}
+        onSaved={() => { setCategoryDialogOpen(false); load() }}
+      />
     </Card>
   )
 }
 
-function OrgMemberDialog({ open, onOpenChange, member, onSaved }: {
-  open: boolean; onOpenChange: (o: boolean) => void; member: OrgMember | null; onSaved: () => void
+function OrgCategoryDialog({ open, onOpenChange, category, onSaved }: {
+  open: boolean; onOpenChange: (o: boolean) => void; category: OrgCategoryItem | null; onSaved: () => void
+}) {
+  const [form, setForm] = React.useState({ name: '', description: '', order: 1 })
+  const [saving, setSaving] = React.useState(false)
+
+  React.useEffect(() => {
+    if (category) {
+      setForm({ name: category.name, description: category.description || '', order: category.order })
+    } else {
+      setForm({ name: '', description: '', order: 1 })
+    }
+  }, [category, open])
+
+  const submit = async () => {
+    if (!form.name.trim()) { toast.error('Nama kategori wajib diisi'); return }
+    setSaving(true)
+    try {
+      const url = category ? `/api/organization/categories?id=${category.id}` : '/api/organization/categories'
+      const method = category ? 'PATCH' : 'POST'
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal menyimpan kategori'); return }
+      toast.success(category ? 'Kategori diperbarui' : 'Kategori dibuat')
+      onSaved()
+    } catch { toast.error('Terjadi kesalahan') } finally { setSaving(false) }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-navy dark:text-white">
+            <Filter className="h-5 w-5 text-gold" /> {category ? 'Edit Kategori Pengurus' : 'Tambah Kategori Pengurus'}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <Field label="Nama Kategori *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Contoh: Pengurus Pusat, Dewan Pembina, Bidang Kearsipan" />
+          <div className="space-y-2">
+            <Label>Deskripsi / Keterangan</Label>
+            <Textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Keterangan singkat kategori pengurus ini..." />
+          </div>
+          <Field label="Urutan Tampilan Publik" value={String(form.order)} onChange={(v) => setForm({ ...form, order: Number(v) || 1 })} type="number" />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
+          <Button onClick={submit} disabled={saving} className="bg-navy-gradient">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Simpan Kategori
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function OrgMemberDialog({ open, onOpenChange, member, categories, onSaved }: {
+  open: boolean; onOpenChange: (o: boolean) => void; member: OrgMember | null; categories: OrgCategoryItem[]; onSaved: () => void
 }) {
   const [form, setForm] = React.useState({
     name: '', position: '', category: 'Pengurus Pusat', photo: '', bio: '', order: 1, isActive: true,
   })
   const [saving, setSaving] = React.useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = React.useState(false)
+  const photoInputRef = React.useRef<HTMLInputElement>(null)
 
   React.useEffect(() => {
     if (member) {
@@ -1590,9 +1863,27 @@ function OrgMemberDialog({ open, onOpenChange, member, onSaved }: {
         photo: member.photo || '', bio: member.bio || '', order: member.order, isActive: member.isActive,
       })
     } else {
-      setForm({ name: '', position: '', category: 'Pengurus Pusat', photo: '', bio: '', order: 1, isActive: true })
+      const defaultCat = categories.length > 0 ? categories[0].name : 'Pengurus Pusat'
+      setForm({ name: '', position: '', category: defaultCat, photo: '', bio: '', order: 1, isActive: true })
     }
-  }, [member, open])
+  }, [member, categories, open])
+
+  const handlePhotoUpload = async (file: File) => {
+    setUploadingPhoto(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/events-admin/upload', { method: 'POST', body: fd })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal upload foto pengurus'); return }
+      setForm((f) => ({ ...f, photo: d.url }))
+      toast.success('Foto pengurus terunggah')
+    } catch {
+      toast.error('Gagal upload foto pengurus')
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
 
   const submit = async () => {
     if (!form.name || !form.position) { toast.error('Nama dan jabatan wajib diisi'); return }
@@ -1617,15 +1908,77 @@ function OrgMemberDialog({ open, onOpenChange, member, onSaved }: {
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          <Field label="Nama Lengkap *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
+          {/* Foto Pengurus Upload Area */}
+          <div className="space-y-2">
+            <Label>Foto Pengurus</Label>
+            <div className="flex items-center gap-4">
+              <div className="h-20 w-20 rounded-full border border-border bg-muted overflow-hidden flex-shrink-0 relative shadow-sm">
+                {form.photo ? (
+                  <img src={form.photo} alt={form.name || 'Foto'} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full grid place-items-center bg-navy/10 text-navy dark:text-white font-bold text-lg">
+                    {form.name ? form.name.charAt(0).toUpperCase() : <UserCircle className="h-10 w-10 text-muted-foreground/40" />}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2 flex-1">
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) handlePhotoUpload(f)
+                    e.target.value = ''
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadingPhoto}
+                  onClick={() => photoInputRef.current?.click()}
+                >
+                  {uploadingPhoto ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-1.5 h-3.5 w-3.5" />}
+                  Upload Foto
+                </Button>
+                {form.photo && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-600 ml-1 h-8 text-xs"
+                    onClick={() => setForm({ ...form, photo: '' })}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Hapus Foto
+                  </Button>
+                )}
+                <div className="flex items-center gap-1.5 pt-1">
+                  <Link2 className="h-3 w-3 text-muted-foreground" />
+                  <Input
+                    placeholder="atau tempel URL foto..."
+                    value={form.photo}
+                    onChange={(e) => setForm({ ...form, photo: e.target.value })}
+                    className="h-7 text-xs font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Field label="Nama Lengkap *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Nama & Gelar Pengurus" />
           <Field label="Jabatan *" value={form.position} onChange={(v) => setForm({ ...form, position: v })} placeholder="Ketua Umum, Sekretaris, dll" />
           <div className="grid sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Kategori</Label>
               <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Pilih Kategori..." /></SelectTrigger>
                 <SelectContent>
-                  {['Pengurus Pusat', 'Bidang', 'Dewan Pembina', 'Dewan Kehormatan'].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {categories.length > 0
+                    ? categories.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)
+                    : ['Pengurus Pusat', 'Bidang', 'Dewan Pembina', 'Dewan Kehormatan'].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)
+                  }
                 </SelectContent>
               </Select>
             </div>
@@ -1633,10 +1986,9 @@ function OrgMemberDialog({ open, onOpenChange, member, onSaved }: {
           </div>
           <div className="space-y-2">
             <Label>Bio Singkat</Label>
-            <Textarea rows={3} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
+            <Textarea rows={3} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} placeholder="Ringkasan profil atau riwayat jabatan..." />
           </div>
-          <Field label="Photo URL" value={form.photo} onChange={(v) => setForm({ ...form, photo: v })} placeholder="https://..." />
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex items-center gap-2 cursor-pointer pt-1">
             <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} className="rounded" />
             <span className="text-sm">Aktif (tampil di website publik)</span>
           </label>
@@ -1645,7 +1997,7 @@ function OrgMemberDialog({ open, onOpenChange, member, onSaved }: {
           <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
           <Button onClick={submit} disabled={saving} className="bg-navy-gradient">
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Simpan
+            Simpan Pengurus
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1871,5 +2223,194 @@ function EmptyState({ icon: Icon, label }: { icon: any; label: string }) {
       <Icon className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
       <p className="text-sm text-muted-foreground">{label}</p>
     </div>
+  )
+}
+
+// ============ FAQ MANAGER ============
+
+function FaqManager() {
+  const { setView } = useApp()
+  const [faqs, setFaqs] = React.useState<any[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [editing, setEditing] = React.useState<any | null>(null)
+  const [dialogOpen, setDialogOpen] = React.useState(false)
+
+  const load = React.useCallback(() => {
+    setLoading(true)
+    fetch('/api/faq?admin=true')
+      .then((r) => r.json())
+      .then((d) => setFaqs(d.faqs ?? []))
+      .finally(() => setLoading(false))
+  }, [])
+
+  React.useEffect(() => { load() }, [load])
+
+  const remove = async (f: any) => {
+    if (!confirm(`Hapus FAQ "${f.question.slice(0, 30)}..."?`)) return
+    try {
+      await fetch(`/api/faq?id=${f.id}`, { method: 'DELETE' })
+      toast.success('FAQ berhasil dihapus')
+      load()
+    } catch { toast.error('Gagal menghapus FAQ') }
+  }
+
+  const togglePublish = async (f: any) => {
+    try {
+      await fetch(`/api/faq?id=${f.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublished: !f.isPublished }),
+      })
+      toast.success(f.isPublished ? 'FAQ dinonaktifkan' : 'FAQ dipublikasikan')
+      load()
+    } catch { toast.error('Gagal mengubah status FAQ') }
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b border-border gap-3">
+          <div>
+            <h3 className="font-semibold text-sm text-navy dark:text-white">Pertanyaan Umum (FAQ)</h3>
+            <p className="text-xs text-muted-foreground">{faqs.length} FAQ terdaftar di website publik</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setView({ name: 'faq' })}>
+              <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Lihat Publik
+            </Button>
+            <Button onClick={() => { setEditing(null); setDialogOpen(true) }} className="bg-navy-gradient" size="sm">
+              <Plus className="mr-1.5 h-3.5 w-3.5" /> Tambah FAQ
+            </Button>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="p-6 space-y-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}</div>
+        ) : faqs.length === 0 ? (
+          <EmptyState icon={HelpCircle} label="Belum ada FAQ" />
+        ) : (
+          <div className="divide-y divide-border max-h-[600px] overflow-y-auto scrollbar-premium">
+            {faqs.map((f, i) => (
+              <motion.div key={f.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.02 }} className="p-4 hover:bg-muted/30 flex items-start gap-3">
+                <div className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg bg-gold/10 text-gold font-bold text-xs mt-0.5">
+                  #{f.order}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <Badge variant="outline" className="text-[10px]">{f.category}</Badge>
+                    <Badge variant="outline" className={`text-[10px] ${f.isPublished ? 'border-emerald-400/40 text-emerald-600' : 'border-slate-400/40 text-slate-500'}`}>
+                      {f.isPublished ? 'Dipublikasikan' : 'Draft / Sembunyi'}
+                    </Badge>
+                  </div>
+                  <h4 className="font-semibold text-sm text-navy dark:text-white leading-snug">{f.question}</h4>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{f.answer}</p>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => togglePublish(f)} title={f.isPublished ? 'Sembunyikan' : 'Publikasikan'}>
+                    {f.isPublished ? <Eye className="h-3.5 w-3.5 text-emerald-600" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditing(f); setDialogOpen(true) }}>
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-600" onClick={() => remove(f)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+
+      <FaqDialog open={dialogOpen} onOpenChange={setDialogOpen} item={editing} onSaved={() => { setDialogOpen(false); load() }} />
+    </Card>
+  )
+}
+
+function FaqDialog({ open, onOpenChange, item, onSaved }: {
+  open: boolean; onOpenChange: (o: boolean) => void; item: any | null; onSaved: () => void
+}) {
+  const [form, setForm] = React.useState({ question: '', answer: '', category: 'Umum', order: 1, isPublished: true })
+  const [saving, setSaving] = React.useState(false)
+
+  React.useEffect(() => {
+    if (item) {
+      setForm({
+        question: item.question,
+        answer: item.answer,
+        category: item.category || 'Umum',
+        order: item.order ?? 1,
+        isPublished: item.isPublished !== false,
+      })
+    } else {
+      setForm({ question: '', answer: '', category: 'Umum', order: 1, isPublished: true })
+    }
+  }, [item, open])
+
+  const submit = async () => {
+    if (!form.question.trim() || !form.answer.trim()) { toast.error('Pertanyaan dan jawaban wajib diisi'); return }
+    setSaving(true)
+    try {
+      const url = item ? `/api/faq?id=${item.id}` : '/api/faq'
+      const method = item ? 'PATCH' : 'POST'
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || 'Gagal menyimpan FAQ'); return }
+      toast.success(item ? 'FAQ diperbarui' : 'FAQ ditambahkan')
+      onSaved()
+    } catch { toast.error('Terjadi kesalahan') } finally { setSaving(false) }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-navy dark:text-white">
+            <HelpCircle className="h-5 w-5 text-gold" /> {item ? 'Edit FAQ' : 'Tambah FAQ Baru'}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>Pertanyaan (Question) *</Label>
+            <Input
+              value={form.question}
+              onChange={(e) => setForm({ ...form, question: e.target.value })}
+              placeholder="Contoh: Bagaimana cara menjadi anggota IAA?"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Jawaban (Answer) *</Label>
+            <Textarea
+              rows={4}
+              value={form.answer}
+              onChange={(e) => setForm({ ...form, answer: e.target.value })}
+              placeholder="Jelaskan jawaban secara lengkap dan jelas..."
+            />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Kategori FAQ</Label>
+              <Input
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                placeholder="Umum, Keanggotaan, Sertifikat, dll"
+              />
+            </div>
+            <Field label="Urutan Tampilan" value={String(form.order)} onChange={(v) => setForm({ ...form, order: Number(v) || 1 })} type="number" />
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer pt-1">
+            <input type="checkbox" checked={form.isPublished} onChange={(e) => setForm({ ...form, isPublished: e.target.checked })} className="rounded" />
+            <span className="text-sm">Publikasikan (tampil di halaman FAQ publik)</span>
+          </label>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
+          <Button onClick={submit} disabled={saving} className="bg-navy-gradient">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Simpan FAQ
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

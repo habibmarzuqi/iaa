@@ -54,8 +54,7 @@ export function Footer() {
           <div className="space-y-4">
             <div className="flex items-center gap-2.5">
               {logoUrl ? (
-                 
-                <img src={logoUrl} alt={siteName} className="h-9 w-9 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+                <img src={logoUrl} alt={siteName} className="h-9 w-auto max-w-[150px] object-contain" />
               ) : (
                 <IAALogo light />
               )}

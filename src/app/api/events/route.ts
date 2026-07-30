@@ -92,10 +92,10 @@ export async function GET(req: NextRequest) {
     if (eventType) where.eventType = eventType
     if (search) {
       where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { location: { contains: search, mode: 'insensitive' } },
-        { slug: { contains: search, mode: 'insensitive' } },
+        { title: { contains: search } },
+        { description: { contains: search } },
+        { location: { contains: search } },
+        { slug: { contains: search } },
       ]
     }
 
@@ -184,6 +184,7 @@ export async function POST(req: NextRequest) {
         isRegistrationOpen: isRegistrationOpen !== false,
         isPublished: isPublished !== false,
         isPublicEvent: isPublicEvent === true,
+        certificateTemplateId: body.certificateTemplateId || null,
         organizerId: user.id,
       },
       include: { organizer: { select: { name: true } } },
@@ -258,7 +259,8 @@ export async function PATCH(req: NextRequest) {
         ...(isRegistrationOpen !== undefined && { isRegistrationOpen }),
         ...(isPublished !== undefined && { isPublished }),
         ...(isPublicEvent !== undefined && { isPublicEvent }),
-        ...(coverImage !== undefined && { coverImage }),
+        ...(coverImage !== undefined && { coverImage: coverImage || null }),
+        ...(body.certificateTemplateId !== undefined && { certificateTemplateId: body.certificateTemplateId || null }),
       },
       include: { organizer: { select: { name: true } } },
     })

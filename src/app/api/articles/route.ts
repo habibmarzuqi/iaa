@@ -79,9 +79,9 @@ export async function GET(req: NextRequest) {
     if (category) where.category = category
     if (search) {
       where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { excerpt: { contains: search, mode: 'insensitive' } },
-        { slug: { contains: search, mode: 'insensitive' } },
+        { title: { contains: search } },
+        { excerpt: { contains: search } },
+        { slug: { contains: search } },
       ]
     }
 

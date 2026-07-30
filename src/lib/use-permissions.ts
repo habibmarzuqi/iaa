@@ -39,13 +39,23 @@ interface UsePermissionsResult {
   refresh: () => void
 }
 
-// Module-level cache so multiple components share the same fetch result
+// Module-level cache bound to user ID so switching accounts invalidates cache
+let cachedUserId: string | null = null
 let cachedPermissions: Record<string, PermEntry> | null = null
 let cachedIsSuperAdmin = false
 let cachedIsAdministrator = false
 
 export function usePermissions(): UsePermissionsResult {
   const { user } = useApp()
+
+  // Invalidate cache if user logged out or switched accounts
+  if (user?.id !== cachedUserId) {
+    cachedUserId = user?.id ?? null
+    cachedPermissions = null
+    cachedIsSuperAdmin = false
+    cachedIsAdministrator = false
+  }
+
   const [loading, setLoading] = React.useState(true)
   const [permissions, setPermissions] = React.useState<Record<string, PermEntry>>(cachedPermissions || {})
   const [isSuperAdmin, setIsSuperAdmin] = React.useState(cachedIsSuperAdmin)
@@ -53,36 +63,54 @@ export function usePermissions(): UsePermissionsResult {
 
   const fetchPerms = React.useCallback(async () => {
     if (!user) {
-      setLoading(false)
-      return
-    }
-
-    // SUPER_ADMIN & ADMINISTRATOR bypass group permissions — they see everything
-    if (user.role === 'SUPER_ADMIN' || user.role === 'ADMINISTRATOR') {
-      setIsSuperAdmin(user.role === 'SUPER_ADMIN')
-      setIsAdministrator(user.role === 'ADMINISTRATOR')
-      cachedIsSuperAdmin = user.role === 'SUPER_ADMIN'
-      cachedIsAdministrator = user.role === 'ADMINISTRATOR'
-      cachedPermissions = null // null = see everything
+      setIsSuperAdmin(false)
+      setIsAdministrator(false)
       setPermissions({})
       setLoading(false)
       return
     }
+
+    // SUPER_ADMIN always bypasses group permissions — sees everything
+    if (user.role === 'SUPER_ADMIN') {
+      setIsSuperAdmin(true)
+      setIsAdministrator(false)
+      cachedIsSuperAdmin = true
+      cachedIsAdministrator = false
+      cachedPermissions = null
+      setPermissions({})
+      setLoading(false)
+      return
+    }
+
+    // Non-super-admin users check group permissions
+    setIsSuperAdmin(false)
+    cachedIsSuperAdmin = false
 
     try {
       const res = await fetch('/api/groups?me=true', { cache: 'no-store' })
       if (!res.ok) {
         setPermissions({})
+        setIsAdministrator(user.role === 'ADMINISTRATOR')
         setLoading(false)
         return
       }
       const d = await res.json()
       const perms = d.permissions || {}
+      const userGroups = d.groups || []
+
       setPermissions(perms)
       cachedPermissions = perms
+
+      // An ADMINISTRATOR who is NOT in any group gets fallback unrestricted access.
+      // If placed in specific group(s), their group permissions are enforced.
+      const isUnrestrictedAdmin = user.role === 'ADMINISTRATOR' && userGroups.length === 0
+      setIsAdministrator(isUnrestrictedAdmin)
+      cachedIsAdministrator = isUnrestrictedAdmin
+
       setLoading(false)
     } catch {
       setPermissions({})
+      setIsAdministrator(user.role === 'ADMINISTRATOR')
       setLoading(false)
     }
   }, [user])
@@ -94,10 +122,9 @@ export function usePermissions(): UsePermissionsResult {
   // Build allowed modules set
   const allowedModules = React.useMemo(() => {
     if (isSuperAdmin || isAdministrator) {
-      // Return a special marker — all modules allowed
       return new Set<string>(['__all__'])
     }
-    const set = new Set<string>()
+    const set = new Set<string>(['admin-dashboard']) // Dashboard is always allowed
     for (const [mod, p] of Object.entries(permissions)) {
       if (p.canView) set.add(mod)
     }
@@ -108,6 +135,7 @@ export function usePermissions(): UsePermissionsResult {
 
   const canView = React.useCallback((module: string) => {
     if (hasAllAccess) return true
+    if (module === 'admin-dashboard' || module === 'dashboard') return true
     return !!permissions[module]?.canView
   }, [permissions, hasAllAccess])
 

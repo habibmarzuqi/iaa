@@ -50,11 +50,18 @@ export default function Home() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const eventSlug = params.get('event')
+    const newsSlug = params.get('news')
     const verifyCert = params.get('verify')
     const certsEmail = params.get('certs')
-    if (eventSlug) { setView({ name: 'event-detail', slug: eventSlug }); window.history.replaceState({}, '', window.location.pathname) }
-    else if (verifyCert) { setView({ name: 'verify-certificate' }); window.history.replaceState({}, '', window.location.pathname) }
-    else if (certsEmail) { setView({ name: 'my-certificates' }); window.history.replaceState({}, '', window.location.pathname) }
+    if (eventSlug) {
+      setView({ name: 'event-detail', slug: eventSlug })
+    } else if (newsSlug) {
+      setView({ name: 'news-detail', slug: newsSlug })
+    } else if (verifyCert) {
+      setView({ name: 'verify-certificate' })
+    } else if (certsEmail) {
+      setView({ name: 'my-certificates' })
+    }
   }, [setView])
 
   // Helper: render admin view by name
@@ -110,8 +117,8 @@ export default function Home() {
       if (!user || !['SUPER_ADMIN', 'ADMINISTRATOR', 'PENGURUS'].includes(user.role)) {
         return <LoginPage />
       }
-      // For non-dashboard views, check group permission (PENGURUS only — SUPER_ADMIN/ADMINISTRATOR bypass)
-      if (view.name !== 'admin-dashboard' && user.role === 'PENGURUS') {
+      // For non-dashboard views, check group permission for non-SUPER_ADMIN users
+      if (view.name !== 'admin-dashboard' && user.role !== 'SUPER_ADMIN') {
         return <PermissionGate viewName={view.name}>{renderAdminView(view.name)}</PermissionGate>
       }
       return renderAdminView(view.name)

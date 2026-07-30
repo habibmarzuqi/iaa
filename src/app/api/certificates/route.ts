@@ -69,10 +69,10 @@ export async function GET(req: NextRequest) {
   if (eventId) where.eventId = eventId
   if (search) {
     where.OR = [
-      { certificateNumber: { contains: search, mode: 'insensitive' } },
-      { title: { contains: search, mode: 'insensitive' } },
-      { member: { fullName: { contains: search, mode: 'insensitive' } } },
-      { member: { memberNumber: { contains: search, mode: 'insensitive' } } },
+      { certificateNumber: { contains: search } },
+      { title: { contains: search } },
+      { member: { fullName: { contains: search } } },
+      { member: { memberNumber: { contains: search } } },
     ]
   }
 

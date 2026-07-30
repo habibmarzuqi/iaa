@@ -7,7 +7,7 @@ import { PublicLayout } from '@/components/layout/public-layout'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ArrowLeft, Users } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -15,27 +15,53 @@ interface OrgMember {
   id: string; name: string; position: string; category: string; photo: string | null; bio: string | null
 }
 
+interface OrgCat {
+  id: string; name: string; description: string | null; order: number
+}
+
 export function OrganizationView() {
   const { setView } = useApp()
   const [members, setMembers] = React.useState<OrgMember[]>([])
+  const [categories, setCategories] = React.useState<OrgCat[]>([])
   const [loading, setLoading] = React.useState(true)
 
   React.useEffect(() => {
     fetch('/api/organization')
       .then((r) => r.json())
-      .then((d) => setMembers(d.members ?? []))
+      .then((d) => {
+        setMembers(d.members ?? [])
+        setCategories(d.categories ?? [])
+      })
       .finally(() => setLoading(false))
   }, [])
 
-  // Group by category
+  // Group by category respecting category order
   const groups = React.useMemo(() => {
-    const m: Record<string, OrgMember[]> = {}
+    const map: Record<string, OrgMember[]> = {}
     members.forEach((mem) => {
-      if (!m[mem.category]) m[mem.category] = []
-      m[mem.category].push(mem)
+      if (!map[mem.category]) map[mem.category] = []
+      map[mem.category].push(mem)
     })
-    return m
-  }, [members])
+
+    const result: Array<{ categoryName: string; members: OrgMember[] }> = []
+
+    // 1. Add categories defined in database in order
+    categories.forEach((cat) => {
+      if (map[cat.name] && map[cat.name].length > 0) {
+        result.push({ categoryName: cat.name, members: map[cat.name] })
+        delete map[cat.name]
+      }
+    })
+
+    // 2. Add any remaining categories
+    Object.entries(map).forEach(([catName, mems]) => {
+      if (mems.length > 0) {
+        result.push({ categoryName: catName, members: mems })
+      }
+    })
+
+    return result
+  }, [members, categories])
 
   return (
     <PublicLayout>
@@ -63,17 +89,17 @@ export function OrganizationView() {
               </div>
             ))}
           </div>
-        ) : Object.entries(groups).length === 0 ? (
+        ) : groups.length === 0 ? (
           <div className="text-center py-16">
             <Users className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
             <p className="text-muted-foreground">Belum ada data pengurus</p>
           </div>
         ) : (
-          Object.entries(groups).map(([cat, mems], gi) => (
-            <section key={cat} className="mb-12">
+          groups.map(({ categoryName, members: mems }) => (
+            <section key={categoryName} className="mb-12">
               <div className="flex items-center gap-3 mb-6">
                 <div className="h-px flex-1 bg-border" />
-                <Badge variant="outline" className="border-gold/40 text-gold bg-gold/5 px-4 py-1.5 text-sm font-semibold">{cat}</Badge>
+                <Badge variant="outline" className="border-gold/40 text-gold bg-gold/5 px-4 py-1.5 text-sm font-semibold">{categoryName}</Badge>
                 <div className="h-px flex-1 bg-border" />
               </div>
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -91,7 +117,8 @@ export function OrganizationView() {
                         <div className="relative h-32 bg-navy-gradient overflow-hidden">
                           <div className="absolute inset-0 bg-grid opacity-30" />
                           <div className="absolute inset-0 grid place-items-center">
-                            <Avatar className="h-20 w-20 border-4 border-white/30 shadow-lg">
+                            <Avatar className="h-20 w-20 border-4 border-white/40 shadow-xl ring-2 ring-gold/40">
+                              {m.photo && <AvatarImage src={m.photo} alt={m.name} className="object-cover" />}
                               <AvatarFallback className="bg-white/20 text-white font-display font-bold text-xl">
                                 {initials}
                               </AvatarFallback>

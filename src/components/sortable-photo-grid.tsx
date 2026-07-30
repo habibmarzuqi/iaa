@@ -12,7 +12,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/components/ui/button'
-import { Eye, Trash2, Check, GripVertical } from 'lucide-react'
+import { Eye, Trash2, Check, GripVertical, Edit2 } from 'lucide-react'
 
 interface Photo {
   id: string
@@ -27,10 +27,11 @@ interface SortablePhotoGridProps {
   onToggleSelect: (id: string) => void
   onDelete: (id: string) => void
   onReorder: (newOrder: string[]) => void
+  onEditTitle?: (photo: Photo) => void
 }
 
 export function SortablePhotoGrid({
-  photos, selectMode, selectedPhotos, onToggleSelect, onDelete, onReorder,
+  photos, selectMode, selectedPhotos, onToggleSelect, onDelete, onReorder, onEditTitle,
 }: SortablePhotoGridProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -64,6 +65,7 @@ export function SortablePhotoGrid({
               isSelected={selectedPhotos.has(p.id)}
               onToggleSelect={onToggleSelect}
               onDelete={onDelete}
+              onEditTitle={onEditTitle}
             />
           ))}
         </div>
@@ -73,7 +75,7 @@ export function SortablePhotoGrid({
 }
 
 function SortablePhoto({
-  photo, index, selectMode, isSelected, onToggleSelect, onDelete,
+  photo, index, selectMode, isSelected, onToggleSelect, onDelete, onEditTitle,
 }: {
   photo: Photo
   index: number
@@ -81,6 +83,7 @@ function SortablePhoto({
   isSelected: boolean
   onToggleSelect: (id: string) => void
   onDelete: (id: string) => void
+  onEditTitle?: (photo: Photo) => void
 }) {
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging,
@@ -105,7 +108,6 @@ function SortablePhoto({
       } ${isDragging ? 'shadow-2xl' : ''}`}
       onClick={() => selectMode && onToggleSelect(photo.id)}
     >
-      { }
       <img src={photo.url} alt={photo.title || 'Foto'} className="h-full w-full object-cover" />
 
       {/* Drag handle (only when not in select mode) */}
@@ -133,8 +135,19 @@ function SortablePhoto({
       {!selectMode && (
         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center">
           <div className="flex gap-1">
+            {onEditTitle && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 w-7 p-0"
+                onClick={(e) => { e.stopPropagation(); onEditTitle(photo) }}
+                title="Edit Judul Foto"
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <a href={photo.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-              <Button size="sm" variant="secondary" className="h-7 w-7 p-0">
+              <Button size="sm" variant="secondary" className="h-7 w-7 p-0" title="Lihat Foto">
                 <Eye className="h-3.5 w-3.5" />
               </Button>
             </a>
@@ -143,6 +156,7 @@ function SortablePhoto({
               variant="secondary"
               className="h-7 w-7 p-0 text-red-600 hover:bg-red-50"
               onClick={(e) => { e.stopPropagation(); onDelete(photo.id) }}
+              title="Hapus Foto"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>

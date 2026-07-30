@@ -99,12 +99,12 @@ export function AboutView() {
                 <CardContent className="p-8 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     {[
-                      { v: settings['about.stats.foundedYear'] || '1973', l: settings['about.stats.foundedYearLabel'] || 'Tahun Berdiri' },
-                      { v: settings['about.stats.yearsActive'] || '53', l: settings['about.stats.yearsActiveLabel'] || 'Tahun Berkarya' },
-                      { v: settings['about.stats.activeMembers'] || '2,400+', l: settings['about.stats.activeMembersLabel'] || 'Anggota Aktif' },
-                      { v: settings['about.stats.provinces'] || '34', l: settings['about.stats.provincesLabel'] || 'Provinsi' },
-                    ].map((s) => (
-                      <div key={s.l} className="text-center p-3 rounded-xl bg-white/5 border border-white/10">
+                      { v: settings['about.stats.stat1Value'] || settings['about.stats.activeMembers'] || '2,400+', l: settings['about.stats.stat1Label'] || settings['about.stats.activeMembersLabel'] || 'Anggota Aktif' },
+                      { v: settings['about.stats.stat2Value'] || '180+', l: settings['about.stats.stat2Label'] || 'Kegiatan / Tahun' },
+                      { v: settings['about.stats.stat3Value'] || '5,600+', l: settings['about.stats.stat3Label'] || 'Sertifikat Terbit' },
+                      { v: settings['about.stats.stat4Value'] || '1,200+', l: settings['about.stats.stat4Label'] || 'Koleksi Digital' },
+                    ].map((s, i) => (
+                      <div key={i} className="text-center p-3 rounded-xl bg-white/5 border border-white/10">
                         <div className="text-3xl font-extrabold font-display text-gold">{s.v}</div>
                         <div className="text-[11px] text-white/60 uppercase tracking-wide mt-1">{s.l}</div>
                       </div>

@@ -1,15 +1,317 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import * as React from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '@/lib/store'
 import { useTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowRight, ShieldCheck, BookOpen, Award, Users, Sparkles, Calendar } from 'lucide-react'
+import {
+  ArrowRight, ShieldCheck, BookOpen, Award, Users, Sparkles, Calendar,
+  ChevronLeft, ChevronRight, CheckCircle2, Play, Pause,
+} from 'lucide-react'
+
+const HERO_SLIDES = [
+  {
+    id: 'slide-1',
+    badge: '🎉 Portal Resmi IAA Digital',
+    title: 'Transformasi Kearsipan Digital Indonesia',
+    subtitle: 'Platform terpadu untuk keanggotaan, sertifikasi arsiparis berjenjang, perpustakaan digital, dan tata kelola memori kolektif peradaban bangsa.',
+    primaryBtnText: 'Masuk / Daftar',
+    primaryView: 'login',
+    secondaryBtnText: 'Jelajahi Portal',
+    secondaryView: 'about',
+    accentGradient: 'from-blue-600/20 via-navy/90 to-navy',
+    tagIcon: Sparkles,
+  },
+  {
+    id: 'slide-2',
+    badge: '🎓 Program Unggulan IAA',
+    title: 'Sertifikasi & Pelatihan Berjenjang Arsiparis',
+    subtitle: 'Tingkatkan kompetensi profesional dengan pelatihan berstandar nasional dan E-Certificate resmi terverifikasi online dengan QR Code.',
+    primaryBtnText: 'Lihat Agenda Kegiatan',
+    primaryView: 'event-list',
+    secondaryBtnText: 'Verifikasi Sertifikat',
+    secondaryView: 'verify-cert',
+    accentGradient: 'from-amber-600/20 via-navy/90 to-navy',
+    tagIcon: Award,
+  },
+  {
+    id: 'slide-3',
+    badge: '📚 Digital Library & Repository',
+    title: 'Pusat Referensi, Jurnal & Regulasi Kearsipan',
+    subtitle: 'Akses cepat ke 1,200+ koleksi digital, jurnal ilmiah, pedoman teknis, dan standar SOP kearsipan Indonesia.',
+    primaryBtnText: 'Buka Digital Library',
+    primaryView: 'library',
+    secondaryBtnText: 'Tentang IAA',
+    secondaryView: 'about',
+    accentGradient: 'from-emerald-600/20 via-navy/90 to-navy',
+    tagIcon: BookOpen,
+  },
+]
 
 export function HeroSection() {
+  const [settings, setSettings] = React.useState<Record<string, string>>({})
+
+  React.useEffect(() => {
+    fetch('/api/settings', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setSettings(d.settings || {}))
+      .catch(() => {})
+  }, [])
+
+  const heroStyle = settings['hero.style'] || 'carousel'
+
+  if (heroStyle === 'classic') {
+    return <HeroClassic settings={settings} />
+  }
+
+  return <HeroCarousel settings={settings} />
+}
+
+/**
+ * Option A: Hero Carousel Banner Interaktif & Profesional
+ */
+function HeroCarousel({ settings }: { settings: Record<string, string> }) {
+  const { setView, user } = useApp()
+  const [currentIndex, setCurrentIndex] = React.useState(0)
+  const [isPaused, setIsPaused] = React.useState(false)
+
+  const slides = React.useMemo(() => {
+    try {
+      if (settings['hero.carousel.slides']) {
+        const parsed = JSON.parse(settings['hero.carousel.slides'])
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch {}
+    return HERO_SLIDES
+  }, [settings])
+
+  const stats = [
+    { icon: Users, value: settings['about.stats.stat1Value'] || '2,400+', label: settings['about.stats.stat1Label'] || 'Anggota Aktif' },
+    { icon: Calendar, value: settings['about.stats.stat2Value'] || '180+', label: settings['about.stats.stat2Label'] || 'Kegiatan / Tahun' },
+    { icon: Award, value: settings['about.stats.stat3Value'] || '5,600+', label: settings['about.stats.stat3Label'] || 'Sertifikat Terbit' },
+    { icon: BookOpen, value: settings['about.stats.stat4Value'] || '1,200+', label: settings['about.stats.stat4Label'] || 'Koleksi Digital' },
+  ]
+
+  // Auto slide advance every 6 seconds
+  React.useEffect(() => {
+    if (isPaused || slides.length === 0) return
+    const timer = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % slides.length)
+    }, 6000)
+    return () => clearInterval(timer)
+  }, [isPaused, slides.length])
+
+  const currentSlide = slides[currentIndex % slides.length] || HERO_SLIDES[0]
+  const TagIcon = currentSlide.tagIcon || Sparkles
+
+  const handlePrev = () => {
+    setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length)
+  }
+
+  const handleNext = () => {
+    setCurrentIndex((prev) => (prev + 1) % slides.length)
+  }
+
+  return (
+    <section
+      className="relative overflow-hidden bg-hero-gradient text-white min-h-[580px] lg:min-h-[640px] flex flex-col justify-between"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      {/* Decorative Orbs */}
+      <div className="absolute inset-0 bg-grid opacity-35" />
+      <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-blue/20 blur-3xl animate-float-slow" />
+      <div className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full bg-gold/15 blur-3xl animate-float-slow" style={{ animationDelay: '2.5s' }} />
+
+      {/* Main Slide Area */}
+      <div className="relative mx-auto max-w-7xl px-4 lg:px-8 pt-16 lg:pt-24 pb-12 flex-1 flex flex-col justify-center">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentSlide.id || currentIndex}
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.5, ease: 'easeInOut' }}
+            className="grid gap-10 lg:grid-cols-12 items-center"
+          >
+            {/* Slide Content (Left) */}
+            <div className="lg:col-span-7 space-y-6">
+              {currentSlide.badge && (
+                <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3.5 py-1.5 text-xs font-semibold text-gold backdrop-blur-md">
+                  <TagIcon className="h-4 w-4" />
+                  <span>{currentSlide.badge}</span>
+                  <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse ml-1" />
+                </div>
+              )}
+
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.08] tracking-tight">
+                {currentSlide.title}
+              </h1>
+
+              <p className="text-white/80 text-base sm:text-lg leading-relaxed max-w-2xl">
+                {currentSlide.subtitle}
+              </p>
+
+              <div className="flex flex-wrap items-center gap-3.5 pt-3">
+                {currentSlide.primaryBtnText && (
+                  <Button
+                    onClick={() => {
+                      if (user && currentSlide.primaryView === 'login') {
+                        setView({ name: user.role === 'ANGGOTA' ? 'member-dashboard' : 'admin-dashboard' })
+                      } else {
+                        setView({ name: (currentSlide.primaryView as any) || 'about' })
+                      }
+                    }}
+                    size="lg"
+                    className="bg-gold-gradient text-navy font-bold hover:opacity-90 shadow-gold-glow border-0"
+                  >
+                    {user && currentSlide.primaryView === 'login' ? 'Dashboard Saya' : currentSlide.primaryBtnText}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
+
+                {currentSlide.secondaryBtnText && (
+                  <Button
+                    onClick={() => setView({ name: (currentSlide.secondaryView as any) || 'about' })}
+                    size="lg"
+                    variant="outline"
+                    className="bg-white/5 border-white/20 text-white hover:bg-white/10 hover:text-white backdrop-blur-sm"
+                  >
+                    {currentSlide.secondaryBtnText}
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Slide Graphic / Preview Card (Right) */}
+            <div className="lg:col-span-5 relative hidden lg:block">
+              {currentSlide.image ? (
+                <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/20 aspect-[16/10] group">
+                  <img src={currentSlide.image} alt={currentSlide.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="absolute bottom-4 left-4 right-4 text-white">
+                    <Badge className="bg-gold text-navy font-bold text-[10px] mb-1">BANNER SLIDE #{currentIndex + 1}</Badge>
+                    <div className="text-xs font-semibold line-clamp-1">{currentSlide.title}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative glass-card rounded-2xl p-6 border-white/20 shadow-2xl overflow-hidden group">
+                  <div className={`absolute inset-0 bg-gradient-to-br ${currentSlide.accentGradient || 'from-blue-600/20 via-navy/90 to-navy'} opacity-60`} />
+                  <div className="relative space-y-4 text-white">
+                    <div className="flex items-center justify-between border-b border-white/15 pb-3">
+                      <span className="text-xs font-bold uppercase tracking-wider text-gold flex items-center gap-1.5">
+                        <ShieldCheck className="h-4 w-4" /> Official Platform
+                      </span>
+                      <Badge className="bg-white/10 text-white border-white/20 text-[10px]">VERIFIED</Badge>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h3 className="font-display font-bold text-lg leading-snug">{currentSlide.title}</h3>
+                      <p className="text-xs text-white/70 line-clamp-3 leading-relaxed">{currentSlide.subtitle}</p>
+                    </div>
+
+                    {/* Feature checklist */}
+                    <div className="space-y-1.5 pt-2 border-t border-white/10 text-xs text-white/90">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-gold flex-shrink-0" />
+                        <span>Terintegrasi ANRI & Database Kearsipan Nasional</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-gold flex-shrink-0" />
+                        <span>Verifikasi Online E-Certificate Real-time</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-gold flex-shrink-0" />
+                        <span>Akses Repository Digital 24/7</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Controls & Stats Bottom Bar */}
+      <div className="relative border-t border-white/10 bg-black/20 backdrop-blur-md py-4">
+        <div className="mx-auto max-w-7xl px-4 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
+          {/* Controls: Prev/Next & Indicators */}
+          <div className="flex items-center gap-4">
+            <div className="flex gap-1.5">
+              <button
+                onClick={handlePrev}
+                className="h-8 w-8 rounded-full border border-white/20 bg-white/5 hover:bg-white/20 grid place-items-center transition-colors text-white"
+                title="Slide Sebelumnya"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={handleNext}
+                className="h-8 w-8 rounded-full border border-white/20 bg-white/5 hover:bg-white/20 grid place-items-center transition-colors text-white"
+                title="Slide Selanjutnya"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Slide Dots Indicator */}
+            <div className="flex items-center gap-2">
+              {slides.map((slide: any, index: number) => (
+                <button
+                  key={slide.id || index}
+                  onClick={() => setCurrentIndex(index)}
+                  className={`h-2 rounded-full transition-all ${
+                    currentIndex === index ? 'w-8 bg-gold' : 'w-2 bg-white/30 hover:bg-white/50'
+                  }`}
+                  title={`Slide ${index + 1}`}
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={() => setIsPaused(!isPaused)}
+              className="text-white/60 hover:text-white text-xs flex items-center gap-1 ml-2"
+              title={isPaused ? 'Lanjutkan Auto-play' : 'Jeda Auto-play'}
+            >
+              {isPaused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
+              <span className="hidden sm:inline">{isPaused ? 'Play' : 'Pause'}</span>
+            </button>
+          </div>
+
+          {/* Inline Live Stats */}
+          <div className="flex items-center gap-6 sm:gap-8 flex-wrap justify-center">
+            {stats.map((s, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <s.icon className="h-4 w-4 text-gold" />
+                <div className="text-left">
+                  <div className="text-sm font-bold font-display leading-none text-white">{s.value}</div>
+                  <div className="text-[10px] text-white/60 leading-tight">{s.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/**
+ * Option B: Hero Classic (Split Screen Statis Beranda Asli)
+ */
+function HeroClassic({ settings }: { settings: Record<string, string> }) {
   const { setView, user } = useApp()
   const { t } = useTranslation()
+
+  const stats = [
+    { icon: Users, value: settings['about.stats.stat1Value'] || '2,400+', label: settings['about.stats.stat1Label'] || 'Anggota Aktif' },
+    { icon: Calendar, value: settings['about.stats.stat2Value'] || '180+', label: settings['about.stats.stat2Label'] || 'Kegiatan / Tahun' },
+    { icon: Award, value: settings['about.stats.stat3Value'] || '5,600+', label: settings['about.stats.stat3Label'] || 'Sertifikat Terbit' },
+    { icon: BookOpen, value: settings['about.stats.stat4Value'] || '1,200+', label: settings['about.stats.stat4Label'] || 'Koleksi Digital' },
+  ]
 
   return (
     <section className="relative overflow-hidden bg-hero-gradient text-white">
@@ -39,27 +341,27 @@ export function HeroSection() {
               <span className="text-white/90">{t('hero.title3')}</span>
             </h1>
 
-            <p className="text-base lg:text-lg text-white/70 leading-relaxed max-w-xl">
-              {t('hero.subtitle')}
+            <p className="text-white/70 text-base sm:text-lg max-w-xl leading-relaxed">
+              {settings['site.description'] || t('hero.subtitle')}
             </p>
 
-            <div className="flex flex-wrap gap-3">
-              {user ? (
+            <div className="flex flex-wrap gap-3 pt-2">
+              {!user ? (
                 <Button
-                  onClick={() => setView({ name: user.role === 'ANGGOTA' ? 'member-dashboard' : 'admin-dashboard' })}
+                  onClick={() => setView({ name: 'login' })}
                   size="lg"
-                  className="bg-gold-gradient text-navy hover:opacity-90 font-semibold"
+                  className="bg-gold-gradient text-navy font-bold hover:opacity-90 shadow-gold-glow border-0"
                 >
-                  {t('hero.cta.dashboard')}
+                  {t('hero.cta.join')}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
                 <Button
-                  onClick={() => setView({ name: 'login' })}
+                  onClick={() => setView({ name: user.role === 'ANGGOTA' ? 'member-dashboard' : 'admin-dashboard' })}
                   size="lg"
-                  className="bg-gold-gradient text-navy hover:opacity-90 font-semibold"
+                  className="bg-gold-gradient text-navy font-bold hover:opacity-90 shadow-gold-glow border-0"
                 >
-                  {t('hero.cta.login')}
+                  Dashboard Saya
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               )}
@@ -75,14 +377,9 @@ export function HeroSection() {
 
             {/* Stats inline */}
             <div className="flex flex-wrap gap-8 pt-6 border-t border-white/10">
-              {[
-                { icon: Users, value: '2,400+', key: 'hero.stats.members' },
-                { icon: Calendar, value: '180+', key: 'hero.stats.events' },
-                { icon: Award, value: '5,600+', key: 'hero.stats.certs' },
-                { icon: BookOpen, value: '1,200+', key: 'hero.stats.library' },
-              ].map((s, i) => (
+              {stats.map((s, i) => (
                 <motion.div
-                  key={s.key}
+                  key={i}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 + i * 0.1 }}
@@ -91,7 +388,7 @@ export function HeroSection() {
                   <s.icon className="h-5 w-5 text-gold" />
                   <div>
                     <div className="text-lg font-bold font-display">{s.value}</div>
-                    <div className="text-[11px] text-white/60">{t(s.key)}</div>
+                    <div className="text-[11px] text-white/60">{s.label}</div>
                   </div>
                 </motion.div>
               ))}
@@ -121,9 +418,9 @@ export function HeroSection() {
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 {[
-                  { label: t('hero.stats.members'), value: '2,418', trend: '+12%' },
-                  { label: t('hero.stats.certs'), value: '5,624', trend: '+8%' },
-                  { label: t('hero.stats.events'), value: '47', trend: '+5' },
+                  { label: 'Anggota Aktif', value: '2,418', trend: '+12%' },
+                  { label: 'Sertifikat', value: '5,624', trend: '+8%' },
+                  { label: 'Kegiatan', value: '47', trend: '+5' },
                   { label: 'Library Downloads', value: '34.2K', trend: '+22%' },
                 ].map((card) => (
                   <div key={card.label} className="rounded-xl bg-white/80 dark:bg-white/5 p-3 backdrop-blur">

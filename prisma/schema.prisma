@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -66,8 +66,8 @@ model Member {
   position        String?
   arsiparisLevel  ArsiparisLevel?
   education       String?
-  trainingHistory String?  // JSON string of training records
-  certificationHistory String? // JSON string
+  trainingHistory String?  @db.Text // JSON string of training records
+  certificationHistory String? @db.Text // JSON string
   status          MemberStatus @default(AKTIF)
   joinDate        DateTime @default(now())
   createdAt       DateTime @default(now())
@@ -101,8 +101,8 @@ model Article {
   id            String   @id @default(cuid())
   slug          String   @unique
   title         String
-  excerpt       String
-  content       String
+  excerpt       String   @db.Text
+  content       String   @db.LongText
   featuredImage String?
   category      String   @default("Umum")
   tags          String?  // comma-separated
@@ -115,7 +115,7 @@ model Article {
   authorId      String
   author        User     @relation(fields: [authorId], references: [id])
   // SEO metadata (Phase 4)
-  metaDescription String?  // custom meta description (default: excerpt)
+  metaDescription String?  @db.Text // custom meta description (default: excerpt)
   ogTitle         String?  // custom OpenGraph title (default: title)
   ogImage         String?  // custom OG image URL (default: featuredImage)
   createdAt       DateTime @default(now())
@@ -141,8 +141,8 @@ model ArticleRevision {
   article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
   version     Int
   title       String
-  excerpt     String
-  content     String
+  excerpt     String   @db.Text
+  content     String   @db.LongText
   editedById  String
   editedBy    User     @relation("ArticleRevisionEditor", fields: [editedById], references: [id])
   changeLog   String?  // optional note about what changed
@@ -183,7 +183,7 @@ model Event {
   id            String   @id @default(cuid())
   slug          String   @unique
   title         String
-  description   String
+  description   String   @db.Text
   eventType     EventType
   coverImage    String?
   location      String
@@ -196,6 +196,8 @@ model Event {
   isPublicEvent Boolean  @default(false)// true = buka untuk umum
   organizerId   String
   organizer     User     @relation("EventOrganizer", fields: [organizerId], references: [id])
+  certificateTemplateId String?
+  certificateTemplate   CertificateTemplate? @relation(fields: [certificateTemplateId], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -278,7 +280,7 @@ model LibraryItem {
   id            String   @id @default(cuid())
   title         String
   slug          String   @unique
-  description   String
+  description   String   @db.Text
   category      LibraryCategory
   author        String?
   publisher     String?
@@ -343,7 +345,7 @@ model GalleryPhoto {
 model Announcement {
   id          String   @id @default(cuid())
   title       String
-  content     String
+  content     String   @db.Text
   type        AnnouncementType @default(BANNER)
   isPinned    Boolean  @default(false)
   isPopup     Boolean  @default(false)
@@ -360,7 +362,20 @@ enum AnnouncementType {
   PINNED
 }
 
-// ============ ORGANIZATION STRUCTURE ============
+// ============ ORGANIZATION STRUCTURE & CATEGORIES ============
+
+model OrgCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     OrganizationMember[]
+
+  @@index([order])
+}
 
 model OrganizationMember {
   id          String   @id @default(cuid())
@@ -369,12 +384,29 @@ model OrganizationMember {
   photo       String?
   bio         String?
   order       Int      @default(0)
-  category    String   @default("Pengurus Pusat") // e.g. "Ketua Umum", "Sekretaris", etc.
+  category    String   @default("Pengurus Pusat")
+  categoryId  String?
+  categoryRef OrgCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([category, isActive])
+}
+
+// ============ FAQ ============
+
+model FAQItem {
+  id          String   @id @default(cuid())
+  question    String   @db.Text
+  answer      String   @db.Text
+  category    String   @default("Umum")
+  order       Int      @default(0)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category, isPublished])
 }
 
 // ============ AUDIT LOG ============
@@ -401,7 +433,7 @@ model ContactMessage {
   email       String
   phone       String?
   subject     String
-  message     String
+  message     String   @db.Text
   isRead      Boolean  @default(false)
   createdAt   DateTime @default(now())
 
@@ -414,7 +446,7 @@ model Archive {
   id              String   @id @default(cuid())
   archiveNumber   String   @unique             // e.g. "ARC-SK-2026-001"
   title           String
-  description     String?
+  description     String?  @db.Text
   category        ArchiveCategory
   documentDate    DateTime                     // tanggal dokumen asli
   source          String?                      // asal dokumen / pihak pengirim
@@ -518,7 +550,7 @@ model ChatMessage {
   conversationId String
   conversation  ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   role          String   // "user" | "assistant"
-  content       String
+  content       String   @db.Text
   createdAt     DateTime @default(now())
 
   @@index([conversationId])
@@ -532,9 +564,9 @@ model Notification {
   user        User?    @relation("NotificationUser", fields: [userId], references: [id], onDelete: Cascade)
   type        NotificationType
   title       String
-  message     String
+  message     String   @db.Text
   link        String?                      // optional route/URL
-  data        String?                      // JSON string for additional data
+  data        String?  @db.Text                    // JSON string for additional data
   isRead      Boolean  @default(false)
   readAt      DateTime?
   createdAt   DateTime @default(now())
@@ -596,7 +628,7 @@ model BackupHistory {
 model SiteSetting {
   id          String   @id @default(cuid())
   key         String   @unique
-  value       String?
+  value       String?  @db.Text
   type        String   @default("text")
   category    String   @default("general")
   updatedAt   DateTime @updatedAt
@@ -631,14 +663,17 @@ model MenuConfig {
 // ============ CERTIFICATE TEMPLATES ============
 
 model CertificateTemplate {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  imageUrl    String?     // background template image
-  fileUrl     String?     // downloadable template file (PDF/PNG)
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  imageUrl     String?     // background template image
+  fileUrl      String?     // downloadable template file (PDF/PNG)
+  layoutConfig String?  @db.Text // JSON string containing X, Y coordinates, font sizes, alignment
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  events       Event[]
 }
 
 
