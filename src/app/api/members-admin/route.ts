@@ -204,7 +204,7 @@ export async function PATCH(req: NextRequest) {
       let memberNumber = existing.memberNumber
       if (!memberNumber) {
         const year = new Date().getFullYear()
-        const count = await db.member.count({ where: { memberNumber: { not: null } } })
+        const count = await db.member.count({ where: { memberNumber: { not: '' } } })
         const seq = (count + 1).toString().padStart(4, '0')
         memberNumber = `IAA-${year}-${seq}`
 
@@ -257,7 +257,7 @@ export async function PATCH(req: NextRequest) {
 
       const rejected = await db.member.update({
         where: { id },
-        data: { status: 'REJECTED' },
+        data: { status: 'REJECTED' as any },
         include: { user: { select: { email: true, role: true } } },
       })
 
