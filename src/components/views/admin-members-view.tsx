@@ -44,7 +44,7 @@ interface Member {
 }
 
 const LEVELS = ['PEMULA', 'TERAMPIL', 'MAHIR', 'PENYELIA', 'AHLI PERTAMA', 'AHLI MUDA', 'AHLI MADYA', 'AHLI UTAMA', 'MUDA', 'MADYA', 'UTAMA']
-const STATUSES = ['AKTIF', 'TIDAK_AKTIF', 'PENSIUN', 'MENINGGAL']
+const STATUSES = ['AKTIF', 'PENDING', 'REJECTED', 'TIDAK_AKTIF', 'PENSIUN', 'MENINGGAL']
 const ROLES = ['ANGGOTA', 'PENGURUS', 'ADMINISTRATOR', 'SUPER_ADMIN']
 
 export function AdminMembersView() {
@@ -69,6 +69,39 @@ export function AdminMembersView() {
   const [importResult, setImportResult] = React.useState<any>(null)
   const [importing, setImporting] = React.useState(false)
   const [downloadingTemplate, setDownloadingTemplate] = React.useState(false)
+  const [adArtDialogOpen, setAdArtDialogOpen] = React.useState(false)
+
+  const handleApprove = async (memberId: string, fullName: string) => {
+    if (!confirm(`Setujui pendaftaran anggota "${fullName}"? Nomor Anggota IAA akan diterbitkan secara otomatis.`)) return
+    try {
+      const res = await fetch(`/api/members-admin?id=${memberId}&action=approve`, { method: 'PATCH' })
+      const d = await res.json()
+      if (!res.ok) {
+        toast.error(d.error || 'Gagal menyetujui anggota')
+        return
+      }
+      toast.success(d.message || 'Pendaftaran anggota berhasil disetujui!')
+      load()
+    } catch {
+      toast.error('Terjadi kesalahan jaringan')
+    }
+  }
+
+  const handleReject = async (memberId: string, fullName: string) => {
+    if (!confirm(`Tolak pengajuan pendaftaran anggota "${fullName}"?`)) return
+    try {
+      const res = await fetch(`/api/members-admin?id=${memberId}&action=reject`, { method: 'PATCH' })
+      const d = await res.json()
+      if (!res.ok) {
+        toast.error(d.error || 'Gagal menolak pengajuan')
+        return
+      }
+      toast.success(d.message || 'Pengajuan pendaftaran ditolak')
+      load()
+    } catch {
+      toast.error('Terjadi kesalahan jaringan')
+    }
+  }
 
   const activeFiltersCount = (search ? 1 : 0)
     + (filterStatus !== 'ALL' ? 1 : 0)
@@ -193,6 +226,9 @@ export function AdminMembersView() {
       subtitle="Kelola data anggota IAA: tambah, edit, hapus, upload foto, kelola jenjang & status"
       actions={
         <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => setAdArtDialogOpen(true)} className="border-gold/40 text-gold-dark dark:text-gold hover:bg-gold/10">
+            <FileText className="mr-2 h-4 w-4" /> Kelola Teks AD/ART
+          </Button>
           <Button variant="outline" onClick={downloadTemplate} disabled={downloadingTemplate}>
             {downloadingTemplate ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
             Template Excel
@@ -470,19 +506,48 @@ export function AdminMembersView() {
                       <div className="flex items-center gap-2 flex-wrap mb-0.5">
                         <span className="font-medium text-sm text-navy dark:text-white">{m.fullName}</span>
                         {m.arsiparisLevel && <Badge variant="outline" className="text-[9px] border-gold/40 text-gold">{m.arsiparisLevel}</Badge>}
-                        <Badge variant="outline" className={`text-[9px] ${m.status === 'AKTIF' ? 'border-emerald-400/40 text-emerald-600' : 'border-slate-400/40 text-slate-500'}`}>{m.status}</Badge>
+                        <Badge variant="outline" className={`text-[9px] ${
+                          m.status === 'AKTIF'
+                            ? 'border-emerald-400/40 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40'
+                            : m.status === 'PENDING'
+                            ? 'border-amber-400/40 text-amber-700 bg-amber-50 dark:bg-amber-950/40'
+                            : m.status === 'REJECTED'
+                            ? 'border-red-400/40 text-red-600 bg-red-50 dark:bg-red-950/40'
+                            : 'border-slate-400/40 text-slate-500'
+                        }`}>
+                          {m.status === 'PENDING' ? '⏳ MENUNGU APPROVAL' : m.status}
+                        </Badge>
                       </div>
                       <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                        <span className="font-mono">{m.memberNumber}</span>
+                        <span className="font-mono">{m.memberNumber || '❌ Belum Terbit'}</span>
                         <span>{m.user?.email}</span>
                         {m.position && <span>· {m.position}</span>}
                       </div>
                     </div>
-                    <div className="flex gap-1 flex-shrink-0">
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => openEdit(m)}>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {m.status === 'PENDING' && (
+                        <>
+                          <Button
+                            size="sm"
+                            className="h-8 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium gap-1 shadow-sm"
+                            onClick={() => handleApprove(m.id, m.fullName)}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Setujui
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-2 text-xs border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 gap-1 font-medium"
+                            onClick={() => handleReject(m.id, m.fullName)}
+                          >
+                            <X className="h-3.5 w-3.5" /> Tolak
+                          </Button>
+                        </>
+                      )}
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Edit Data Anggota" onClick={() => openEdit(m)}>
                         <Edit2 className="h-3.5 w-3.5" />
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-600" onClick={() => remove(m)}>
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-600" title="Hapus Anggota" onClick={() => remove(m)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -518,7 +583,90 @@ export function AdminMembersView() {
         importing={importing}
         result={importResult}
       />
+
+      <AdArtDialog open={adArtDialogOpen} onOpenChange={setAdArtDialogOpen} />
     </AdminShell>
+  )
+}
+
+function AdArtDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const [content, setContent] = React.useState('')
+  const [loading, setLoading] = React.useState(true)
+  const [saving, setSaving] = React.useState(false)
+
+  React.useEffect(() => {
+    if (open) {
+      setLoading(true)
+      fetch('/api/settings')
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.settings?.ad_art_content) {
+            setContent(d.settings.ad_art_content)
+          } else {
+            setContent(`ANGGARAN DASAR & ANGGARAN RUMAH TANGGA (AD/ART)\nIKATAN ARSIPARIS ANRI (IAA)\n\nBAB I — NAMA, WAKTU, DAN KEDUDUKAN\nPasal 1: Organisasi ini bernama Ikatan Arsiparis ANRI (disingkat IAA).\nPasal 2: IAA berkedudukan di Kantor Arsip Nasional Republik Indonesia (ANRI) Jakarta.\n\nBAB II — ASAS DAN TUJUAN\nPasal 3: IAA berasaskan Pancasila dan Undang-Undang Dasar 1945.\nPasal 4: IAA bertujuan meningkatkan profesionalisme, integritas, dan kesejahteraan Arsiparis serta memajukan kearsipan nasional.\n\nBAB III — KEANGGOTAAN DAN HAK/KEWAJIBAN\nPasal 5: Anggota IAA terdiri dari Anggota Biasa, Anggota Luar Biasa, dan Anggota Kehormatan.\nPasal 6: Setiap Anggota berkewajiban menjunjung tinggi integritas, kode etik profesi, membela nama baik organisasi, serta mematuhi seluruh ketetapan AD/ART IAA.`)
+          }
+        })
+        .finally(() => setLoading(false))
+    }
+  }, [open])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings: { ad_art_content: content },
+        }),
+      })
+      if (!res.ok) throw new Error('Gagal menyimpan')
+      toast.success('Teks AD/ART berhasil diperbarui!')
+      onOpenChange(false)
+    } catch {
+      toast.error('Gagal menyimpan teks AD/ART')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-navy dark:text-white">
+            <FileText className="h-5 w-5 text-gold" /> Kelola Teks AD/ART & Kode Etik Pendaftaran
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <p className="text-xs text-muted-foreground">
+            Teks ini akan ditampilkan kepada pendaftar anggota baru pada Langkah 2 (Persetujuan AD/ART).
+          </p>
+
+          {loading ? (
+            <div className="h-48 rounded-lg bg-muted animate-pulse grid place-items-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <Textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={12}
+              className="font-mono text-xs leading-relaxed"
+              placeholder="Ketik atau tempel teks AD/ART di sini..."
+            />
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
+          <Button onClick={handleSave} disabled={saving || loading} className="bg-navy-gradient">
+            {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...</> : <><Save className="mr-2 h-4 w-4" /> Simpan Perubahan</>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

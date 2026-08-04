@@ -197,6 +197,89 @@ export async function PATCH(req: NextRequest) {
   if (!existing) return NextResponse.json({ error: 'Member tidak ditemukan' }, { status: 404 })
 
   try {
+    const action = url.searchParams.get('action')
+
+    // Handle Approve Member Registration
+    if (action === 'approve') {
+      let memberNumber = existing.memberNumber
+      if (!memberNumber) {
+        const year = new Date().getFullYear()
+        const count = await db.member.count({ where: { memberNumber: { not: null } } })
+        const seq = (count + 1).toString().padStart(4, '0')
+        memberNumber = `IAA-${year}-${seq}`
+
+        // Ensure uniqueness
+        const dup = await db.member.findUnique({ where: { memberNumber } })
+        if (dup) {
+          memberNumber = `IAA-${year}-${Date.now().toString().slice(-4)}`
+        }
+      }
+
+      await db.user.update({
+        where: { id: existing.userId },
+        data: { isActive: true },
+      })
+
+      const approved = await db.member.update({
+        where: { id },
+        data: {
+          status: 'AKTIF',
+          memberNumber,
+        },
+        include: { user: { select: { email: true, role: true } } },
+      })
+
+      try {
+        await db.notification.create({
+          data: {
+            userId: existing.userId,
+            type: 'REGISTRATION_STATUS',
+            title: 'Pendaftaran Anggota Disetujui! 🎉',
+            message: `Selamat! Pengajuan anggota Anda telah disetujui. Nomor Anggota IAA Anda: ${memberNumber}`,
+            link: 'member-dashboard',
+          },
+        })
+      } catch {}
+
+      await db.auditLog.create({
+        data: { userId: user.id, action: 'MEMBER_APPROVE', description: `Approved member: ${existing.fullName} (${memberNumber})` },
+      })
+
+      return NextResponse.json({ member: approved, message: 'Pendaftaran anggota berhasil disetujui' })
+    }
+
+    // Handle Reject Member Registration
+    if (action === 'reject') {
+      await db.user.update({
+        where: { id: existing.userId },
+        data: { isActive: false },
+      })
+
+      const rejected = await db.member.update({
+        where: { id },
+        data: { status: 'REJECTED' },
+        include: { user: { select: { email: true, role: true } } },
+      })
+
+      try {
+        await db.notification.create({
+          data: {
+            userId: existing.userId,
+            type: 'REGISTRATION_STATUS',
+            title: 'Pengajuan Pendaftaran Anggota Ditolak',
+            message: `Mohon maaf, pengajuan pendaftaran anggota Anda belum dapat disetujui. Hubungi pengurus untuk informasi lebih lanjut.`,
+            link: 'public',
+          },
+        })
+      } catch {}
+
+      await db.auditLog.create({
+        data: { userId: user.id, action: 'MEMBER_REJECT', description: `Rejected member: ${existing.fullName}` },
+      })
+
+      return NextResponse.json({ member: rejected, message: 'Pengajuan pendaftaran ditolak' })
+    }
+
     const body = await req.json()
     const { memberNumber, nip, fullName, photo, workUnit, position, arsiparisLevel, education, trainingHistory, certificationHistory, status, joinDate, email, name, role, isActive } = body
 
