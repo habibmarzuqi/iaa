@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { validateUploadedFile } from '@/lib/file-validation'
 import { writeFile, mkdir } from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
@@ -21,8 +22,10 @@ export async function POST(req: NextRequest) {
     const isVercel = !!process.env.VERCEL
     const max = isVercel ? 500 * 1024 : MAX_SIZE
     if (file.size > max) return NextResponse.json({ error: `Ukuran melebihi ${isVercel ? '500KB' : '5MB'}` }, { status: 400 })
-    if (!ALLOWED_TYPES.includes(file.type)) return NextResponse.json({ error: `Tipe tidak didukung: ${file.type}` }, { status: 400 })
     const buf = Buffer.from(await file.arrayBuffer())
+
+    const val = validateUploadedFile(buf, file.name, max)
+    if (!val.valid) return NextResponse.json({ error: val.error }, { status: 400 })
     let w: number | null = null, h: number | null = null
     if (file.type !== 'image/svg+xml') { try { const m = await sharp(buf).metadata(); w = m.width ?? null; h = m.height ?? null } catch {} }
     let url: string, storedName: string

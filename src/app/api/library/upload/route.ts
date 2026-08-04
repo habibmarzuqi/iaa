@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { validateUploadedFile } from '@/lib/file-validation'
 import { writeFile, mkdir } from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
@@ -33,6 +34,11 @@ export async function POST(req: NextRequest) {
     }
 
     const buf = Buffer.from(await file.arrayBuffer())
+
+    const val = validateUploadedFile(buf, file.name, MAX_FILE_SIZE)
+    if (!val.valid) {
+      return NextResponse.json({ error: val.error }, { status: 400 })
+    }
 
     if (!existsSync(UPLOAD_DIR)) {
       await mkdir(UPLOAD_DIR, { recursive: true })

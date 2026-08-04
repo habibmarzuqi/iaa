@@ -5,7 +5,8 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { hashPassword } from '@/lib/helpers'
+import { verifyPassword, hashPassword } from '@/lib/password'
+import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -16,21 +17,65 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email dan password wajib diisi' }, { status: 400 })
     }
 
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1'
+    const normalizedEmail = email.toLowerCase().trim()
+    const rateLimitKey = `login:${clientIp}:${normalizedEmail}`
+
+    // 1. Check rate limit (max 5 failed attempts per 15 minutes)
+    const rateCheck = checkRateLimit(rateLimitKey, 5, 15 * 60 * 1000)
+    if (!rateCheck.allowed) {
+      const minutesLeft = Math.ceil((rateCheck.remainingMs || 0) / 60000)
+      return NextResponse.json(
+        { error: `Terlalu banyak percobaan login gagal. Akses dikunci sementara demi keamanan. Silakan coba lagi dalam ${minutesLeft} menit.` },
+        { status: 429 }
+      )
+    }
+
     const user = await db.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
+      where: { email: normalizedEmail },
       include: { member: true },
     })
 
     if (!user || !user.isActive) {
-      return NextResponse.json({ error: 'Akun Anda belum aktif. Hubungi pengurus untuk persetujuan pendaftaran.' }, { status: 401 })
-    }
-    if (user.password !== hashPassword(password)) {
-      return NextResponse.json({ error: 'Email atau password salah' }, { status: 401 })
+      recordFailedAttempt(rateLimitKey, 5, 15 * 60 * 1000)
+      return NextResponse.json({ error: 'Email atau password salah / Akun belum aktif.' }, { status: 401 })
     }
 
-    await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+    // 2. Verify password (bcrypt or legacy SHA-256 fallback)
+    const { isValid, isLegacySha256 } = await verifyPassword(password, user.password)
+    if (!isValid) {
+      const failed = recordFailedAttempt(rateLimitKey, 5, 15 * 60 * 1000)
+      const remaining = 5 - failed.attempts
+      const msg = failed.blocked
+        ? 'Terlalu banyak percobaan login gagal. Akses dikunci selama 15 menit.'
+        : `Email atau password salah. (Sisa percobaan: ${remaining})`
+      return NextResponse.json({ error: msg }, { status: 401 })
+    }
+
+    // 3. Reset rate limit on successful authentication
+    resetRateLimit(rateLimitKey)
+
+    // 4. Auto-upgrade legacy SHA-256 password hash to Bcrypt
+    if (isLegacySha256) {
+      try {
+        const bcryptHash = await hashPassword(password)
+        await db.user.update({
+          where: { id: user.id },
+          data: { password: bcryptHash, lastLoginAt: new Date() },
+        })
+      } catch (e) {
+        console.error('Failed to auto-upgrade password hash to bcrypt:', e)
+      }
+    } else {
+      await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+    }
+
     await db.auditLog.create({
-      data: { userId: user.id, action: 'LOGIN', description: `User ${user.email} logged in` },
+      data: {
+        userId: user.id,
+        action: 'LOGIN',
+        description: `User ${user.email} logged in successfully from IP ${clientIp}`,
+      },
     })
 
     const sessionUser = {
