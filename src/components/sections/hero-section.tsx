@@ -75,7 +75,6 @@ export function HeroSection() {
 function HeroCarousel({ settings }: { settings: Record<string, string> }) {
   const { setView, user } = useApp()
   const [currentIndex, setCurrentIndex] = React.useState(0)
-  const [isPaused, setIsPaused] = React.useState(false)
 
   const slides = React.useMemo(() => {
     try {
@@ -94,15 +93,6 @@ function HeroCarousel({ settings }: { settings: Record<string, string> }) {
     { icon: BookOpen, value: settings['about.stats.stat4Value'] || '1,200+', label: settings['about.stats.stat4Label'] || 'Koleksi Digital' },
   ]
 
-  // Auto slide advance every 6 seconds
-  React.useEffect(() => {
-    if (isPaused || slides.length === 0) return
-    const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % slides.length)
-    }, 6000)
-    return () => clearInterval(timer)
-  }, [isPaused, slides.length])
-
   const currentSlide = slides[currentIndex % slides.length] || HERO_SLIDES[0]
   const TagIcon = currentSlide.tagIcon || Sparkles
 
@@ -117,8 +107,6 @@ function HeroCarousel({ settings }: { settings: Record<string, string> }) {
   return (
     <section
       className="relative overflow-hidden bg-hero-gradient text-white min-h-[580px] lg:min-h-[640px] flex flex-col justify-between"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
     >
       {/* Decorative Orbs */}
       <div className="absolute inset-0 bg-grid opacity-35" />
@@ -270,15 +258,6 @@ function HeroCarousel({ settings }: { settings: Record<string, string> }) {
                 />
               ))}
             </div>
-
-            <button
-              onClick={() => setIsPaused(!isPaused)}
-              className="text-white/60 hover:text-white text-xs flex items-center gap-1 ml-2"
-              title={isPaused ? 'Lanjutkan Auto-play' : 'Jeda Auto-play'}
-            >
-              {isPaused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
-              <span className="hidden sm:inline">{isPaused ? 'Play' : 'Pause'}</span>
-            </button>
           </div>
 
           {/* Inline Live Stats */}

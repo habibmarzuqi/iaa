@@ -136,21 +136,57 @@ export function usePermissions(): UsePermissionsResult {
   const canView = React.useCallback((module: string) => {
     if (hasAllAccess) return true
     if (module === 'admin-dashboard' || module === 'dashboard') return true
+    if (module === 'admin-cms') {
+      return (
+        !!permissions['admin-cms']?.canView ||
+        Object.keys(permissions).some((k) => k.startsWith('cms-') && permissions[k]?.canView)
+      )
+    }
+    if (module.startsWith('cms-')) {
+      return !!permissions['admin-cms']?.canView || !!permissions[module]?.canView
+    }
     return !!permissions[module]?.canView
   }, [permissions, hasAllAccess])
 
   const canCreate = React.useCallback((module: string) => {
     if (hasAllAccess) return true
+    if (module === 'admin-cms') {
+      return (
+        !!permissions['admin-cms']?.canCreate ||
+        Object.keys(permissions).some((k) => k.startsWith('cms-') && permissions[k]?.canCreate)
+      )
+    }
+    if (module.startsWith('cms-')) {
+      return !!permissions['admin-cms']?.canCreate || !!permissions[module]?.canCreate
+    }
     return !!permissions[module]?.canCreate
   }, [permissions, hasAllAccess])
 
   const canEdit = React.useCallback((module: string) => {
     if (hasAllAccess) return true
+    if (module === 'admin-cms') {
+      return (
+        !!permissions['admin-cms']?.canEdit ||
+        Object.keys(permissions).some((k) => k.startsWith('cms-') && permissions[k]?.canEdit)
+      )
+    }
+    if (module.startsWith('cms-')) {
+      return !!permissions['admin-cms']?.canEdit || !!permissions[module]?.canEdit
+    }
     return !!permissions[module]?.canEdit
   }, [permissions, hasAllAccess])
 
   const canDelete = React.useCallback((module: string) => {
     if (hasAllAccess) return true
+    if (module === 'admin-cms') {
+      return (
+        !!permissions['admin-cms']?.canDelete ||
+        Object.keys(permissions).some((k) => k.startsWith('cms-') && permissions[k]?.canDelete)
+      )
+    }
+    if (module.startsWith('cms-')) {
+      return !!permissions['admin-cms']?.canDelete || !!permissions[module]?.canDelete
+    }
     return !!permissions[module]?.canDelete
   }, [permissions, hasAllAccess])
 

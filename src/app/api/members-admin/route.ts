@@ -38,6 +38,10 @@ export async function GET(req: NextRequest) {
   const role = url.searchParams.get('role') || ''
   const status = url.searchParams.get('status') || ''
   const level = url.searchParams.get('level') || ''
+  const workUnit = url.searchParams.get('workUnit') || ''
+  const education = url.searchParams.get('education') || ''
+  const sortBy = url.searchParams.get('sortBy') || 'memberNumber'
+  const sortOrder = url.searchParams.get('sortOrder') === 'desc' ? 'desc' : 'asc'
 
   // Pagination params
   const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'))
@@ -60,23 +64,45 @@ export async function GET(req: NextRequest) {
       { fullName: { contains: search } },
       { memberNumber: { contains: search } },
       { nip: { contains: search } },
+      { workUnit: { contains: search } },
+      { position: { contains: search } },
+      { education: { contains: search } },
       { user: { email: { contains: search } } },
     ]
   }
   if (role) where.user = { ...where.user, role: role as any }
   if (status) where.status = status as any
   if (level) where.arsiparisLevel = level as any
+  if (workUnit) where.workUnit = { contains: workUnit }
+  if (education) where.education = { contains: education }
 
-  const [members, total] = await Promise.all([
+  // Sorting
+  let orderBy: any = { memberNumber: sortOrder }
+  if (sortBy === 'fullName') orderBy = { fullName: sortOrder }
+  if (sortBy === 'joinDate') orderBy = { joinDate: sortOrder }
+  if (sortBy === 'arsiparisLevel') orderBy = { arsiparisLevel: sortOrder }
+  if (sortBy === 'createdAt') orderBy = { createdAt: sortOrder }
+
+  const [members, total, rawWorkUnits] = await Promise.all([
     db.member.findMany({
       where,
       include: { user: { select: { email: true, role: true, avatar: true } } },
-      orderBy: { memberNumber: 'asc' },
+      orderBy,
       skip,
       take: pageSize,
     }),
     db.member.count({ where }),
+    db.member.findMany({
+      select: { workUnit: true },
+      where: { workUnit: { not: null } },
+      distinct: ['workUnit'],
+    }),
   ])
+
+  const availableWorkUnits = rawWorkUnits
+    .map((w) => w.workUnit)
+    .filter((w): w is string => !!w && w.trim() !== '')
+    .sort()
 
   return NextResponse.json({
     members,
@@ -84,6 +110,7 @@ export async function GET(req: NextRequest) {
     page,
     pageSize,
     totalPages: Math.ceil(total / pageSize),
+    availableWorkUnits,
   })
 }
 

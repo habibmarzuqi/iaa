@@ -105,6 +105,18 @@ export function AdminShell({
     return NAV_GROUPS.map((group) => {
       const items = group.items.filter((item) => {
         if (permsLoading) return item.key === 'dashboard'
+        if (item.key === 'cms') {
+          return (
+            canView('admin-cms') ||
+            canView('cms-articles') ||
+            canView('cms-events') ||
+            canView('cms-library') ||
+            canView('cms-gallery') ||
+            canView('cms-organization') ||
+            canView('cms-announcements') ||
+            canView('cms-faq')
+          )
+        }
         return canView(item.view.name) || item.key === 'dashboard'
       })
       return { ...group, items }
@@ -163,7 +175,7 @@ export function AdminShell({
             <div className="space-y-4">
               {visibleGroups.map((group) => (
                 <div key={group.groupKey} className="space-y-1">
-                  <div className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  <div className="px-4 text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
                     {group.groupLabel}
                   </div>
                   {group.items.map((item) => {
@@ -172,20 +184,20 @@ export function AdminShell({
                       <button
                         key={item.key}
                         onClick={() => setView(item.view)}
-                        className={`flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+                        className={`flex items-center gap-3 w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
                           activeKey === item.key
                             ? 'bg-navy-gradient text-white shadow-premium'
                             : 'bg-card hover:bg-accent text-foreground/70 hover:text-navy dark:hover:text-white'
                         }`}
                       >
-                        <item.icon className="h-3.5 w-3.5 flex-shrink-0" />
+                        <item.icon className="h-4 w-4 flex-shrink-0" />
                         <span className="truncate">{t(item.labelKey)}</span>
                         {showInboxBadge && (
                           <span className="ml-auto min-w-[18px] h-4 px-1 grid place-items-center rounded-full bg-red-500 text-white text-[9px] font-bold animate-pulse-gold">
                             {unreadInbox > 9 ? '9+' : unreadInbox}
                           </span>
                         )}
-                        {activeKey === item.key && !showInboxBadge && <ChevronRight className="ml-auto h-3.5 w-3.5 flex-shrink-0" />}
+                        {activeKey === item.key && !showInboxBadge && <ChevronRight className="ml-auto h-4 w-4 flex-shrink-0" />}
                       </button>
                     )
                   })}

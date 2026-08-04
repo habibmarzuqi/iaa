@@ -293,11 +293,13 @@ model LibraryItem {
   downloadCount Int      @default(0)
   viewCount     Int      @default(0)
   isPublished   Boolean  @default(true)
+  accessLevel   AccessLevel @default(PUBLIK)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([category])
   @@index([isPublished])
+  @@index([accessLevel])
 }
 
 enum LibraryCategory {

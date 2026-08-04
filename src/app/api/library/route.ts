@@ -49,23 +49,39 @@ export async function GET(req: NextRequest) {
   const category = url.searchParams.get('category')
   const admin = url.searchParams.get('admin') === 'true'
 
+  // Helper to fetch direct accessLevel values from database
+  const getRawAccessMap = async (): Promise<Map<string, string>> => {
+    const map = new Map<string, string>()
+    try {
+      const rows: any[] = await db.$queryRaw`SELECT id, accessLevel FROM LibraryItem`
+      for (const r of rows) {
+        if (r.id && r.accessLevel) map.set(r.id, String(r.accessLevel))
+      }
+    } catch {}
+    return map
+  }
+
   // Admin detail by ID
   if (id) {
     const user = await getSessionUser(req)
     if (!user || !['SUPER_ADMIN', 'ADMINISTRATOR', 'PENGURUS'].includes(user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    const item = await db.libraryItem.findUnique({ where: { id } })
+    const item: any = await db.libraryItem.findUnique({ where: { id } })
     if (!item) return NextResponse.json({ error: 'Item tidak ditemukan' }, { status: 404 })
+    const accessMap = await getRawAccessMap()
+    item.accessLevel = item.accessLevel || accessMap.get(item.id) || 'PUBLIK'
     return NextResponse.json({ item })
   }
 
   // Public detail by slug
   if (slug) {
-    const item = await db.libraryItem.findUnique({ where: { slug } })
+    const item: any = await db.libraryItem.findUnique({ where: { slug } })
     if (!item || (!item.isPublished && !admin)) {
       return NextResponse.json({ error: 'Item tidak ditemukan' }, { status: 404 })
     }
+    const accessMap = await getRawAccessMap()
+    item.accessLevel = item.accessLevel || accessMap.get(item.id) || 'PUBLIK'
     if (item.isPublished) {
       await db.libraryItem.update({ where: { id: item.id }, data: { viewCount: { increment: 1 } } })
     }
@@ -83,7 +99,12 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
       take: Math.min(limit, 200),
     })
-    return NextResponse.json({ items, total: items.length })
+    const accessMap = await getRawAccessMap()
+    const mapped = items.map((i: any) => ({
+      ...i,
+      accessLevel: i.accessLevel || accessMap.get(i.id) || 'PUBLIK',
+    }))
+    return NextResponse.json({ items: mapped, total: items.length })
   }
 
   // Public list
@@ -95,7 +116,12 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: 'desc' },
     take: limit,
   })
-  return NextResponse.json({ items })
+  const accessMap = await getRawAccessMap()
+  const mapped = items.map((i: any) => ({
+    ...i,
+    accessLevel: i.accessLevel || accessMap.get(i.id) || 'PUBLIK',
+  }))
+  return NextResponse.json({ items: mapped })
 }
 
 export async function POST(req: NextRequest) {
@@ -138,23 +164,53 @@ export async function POST(req: NextRequest) {
       slug = `${baseSlug}-${counter++}`
     }
 
-    const item = await db.libraryItem.create({
-      data: {
-        slug,
-        title,
-        description,
-        category: category as any,
-        author: author || null,
-        publisher: publisher || null,
-        year: typeof year === 'number' ? year : null,
-        pages: typeof pages === 'number' ? pages : null,
-        tags: tags || null,
-        coverImage: coverImage || null,
-        fileUrl: fileUrl || null,
-        fileSize: typeof fileSize === 'number' ? fileSize : null,
-        isPublished: body.isPublished !== false,
-      },
-    })
+    let item: any
+    const accessLvl = body.accessLevel || 'PUBLIK'
+
+    try {
+      item = await db.libraryItem.create({
+        data: {
+          slug,
+          title,
+          description,
+          category: category as any,
+          author: author || null,
+          publisher: publisher || null,
+          year: typeof year === 'number' ? year : null,
+          pages: typeof pages === 'number' ? pages : null,
+          tags: tags || null,
+          coverImage: coverImage || null,
+          fileUrl: fileUrl || null,
+          fileSize: typeof fileSize === 'number' ? fileSize : null,
+          isPublished: body.isPublished !== false,
+          accessLevel: accessLvl as any,
+        },
+      })
+    } catch {
+      item = await db.libraryItem.create({
+        data: {
+          slug,
+          title,
+          description,
+          category: category as any,
+          author: author || null,
+          publisher: publisher || null,
+          year: typeof year === 'number' ? year : null,
+          pages: typeof pages === 'number' ? pages : null,
+          tags: tags || null,
+          coverImage: coverImage || null,
+          fileUrl: fileUrl || null,
+          fileSize: typeof fileSize === 'number' ? fileSize : null,
+          isPublished: body.isPublished !== false,
+        },
+      })
+    }
+
+    // Always ensure accessLevel column in DB is updated
+    try {
+      await db.$executeRaw`UPDATE LibraryItem SET accessLevel = ${accessLvl} WHERE id = ${item.id}`
+      item.accessLevel = accessLvl
+    } catch {}
 
     await db.auditLog.create({
       data: { userId: user.id, action: 'LIBRARY_CREATE', description: `Created library item: ${title}` },
@@ -163,7 +219,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ item }, { status: 201 })
   } catch (e: any) {
     console.error('Library create error:', e)
-    return NextResponse.json({ error: 'Gagal membuat item library' }, { status: 500 })
+    return NextResponse.json({ error: 'Gagal membuat item library: ' + (e.message || 'unknown error') }, { status: 500 })
   }
 }
 
@@ -196,6 +252,7 @@ export async function PATCH(req: NextRequest) {
       fileUrl,
       fileSize,
       isPublished,
+      accessLevel,
     } = body
 
     if (category && !ALLOWED_CATEGORIES.includes(category)) {
@@ -212,24 +269,44 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    const updated = await db.libraryItem.update({
-      where: { id },
-      data: {
-        ...(title !== undefined && { title }),
-        ...(bodySlug !== undefined && { slug: newSlug }),
-        ...(description !== undefined && { description }),
-        ...(category !== undefined && { category: category as any }),
-        ...(author !== undefined && { author }),
-        ...(publisher !== undefined && { publisher }),
-        ...(year !== undefined && { year }),
-        ...(pages !== undefined && { pages }),
-        ...(tags !== undefined && { tags }),
-        ...(coverImage !== undefined && { coverImage }),
-        ...(fileUrl !== undefined && { fileUrl }),
-        ...(fileSize !== undefined && { fileSize }),
-        ...(isPublished !== undefined && { isPublished }),
-      },
-    })
+    const updateData: any = {
+      ...(title !== undefined && { title }),
+      ...(bodySlug !== undefined && { slug: newSlug }),
+      ...(description !== undefined && { description }),
+      ...(category !== undefined && { category: category as any }),
+      ...(author !== undefined && { author }),
+      ...(publisher !== undefined && { publisher }),
+      ...(year !== undefined && { year }),
+      ...(pages !== undefined && { pages }),
+      ...(tags !== undefined && { tags }),
+      ...(coverImage !== undefined && { coverImage }),
+      ...(fileUrl !== undefined && { fileUrl }),
+      ...(fileSize !== undefined && { fileSize }),
+      ...(isPublished !== undefined && { isPublished }),
+    }
+
+    let updated: any
+    try {
+      updated = await db.libraryItem.update({
+        where: { id },
+        data: {
+          ...updateData,
+          ...(accessLevel !== undefined && { accessLevel: accessLevel as any }),
+        },
+      })
+    } catch {
+      updated = await db.libraryItem.update({
+        where: { id },
+        data: updateData,
+      })
+    }
+
+    if (accessLevel !== undefined) {
+      try {
+        await db.$executeRaw`UPDATE LibraryItem SET accessLevel = ${accessLevel} WHERE id = ${id}`
+        updated.accessLevel = accessLevel
+      } catch {}
+    }
 
     await db.auditLog.create({
       data: {
@@ -242,7 +319,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ item: updated })
   } catch (e: any) {
     console.error('Library update error:', e)
-    return NextResponse.json({ error: 'Gagal update item library' }, { status: 500 })
+    return NextResponse.json({ error: 'Gagal update item library: ' + (e.message || 'unknown error') }, { status: 500 })
   }
 }
 

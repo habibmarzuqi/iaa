@@ -29,6 +29,7 @@ import {
   Globe, FileSearch, Check, CheckSquare, Upload, Link2, HelpCircle,
 } from 'lucide-react'
 import { useApp } from '@/lib/store'
+import { usePermissions } from '@/lib/use-permissions'
 import { formatDate, formatDateTime, timeAgo } from '@/lib/helpers'
 import { toast } from 'sonner'
 import { DataPagination } from '@/components/ui/data-pagination'
@@ -51,7 +52,22 @@ const CONTENT_TYPES: { id: ContentType; label: string; icon: any; desc: string }
 ]
 
 export function AdminCMSView() {
+  const { canView, isSuperAdmin, isAdministrator, loading: permsLoading } = usePermissions()
+
+  const availableContentTypes = React.useMemo(() => {
+    return CONTENT_TYPES.filter((c) => canView(`cms-${c.id}`))
+  }, [canView])
+
   const [active, setActive] = React.useState<ContentType>('articles')
+
+  // Set default active tab once permissions are loaded
+  React.useEffect(() => {
+    if (!permsLoading && availableContentTypes.length > 0) {
+      if (!availableContentTypes.some((c) => c.id === active)) {
+        setActive(availableContentTypes[0].id)
+      }
+    }
+  }, [permsLoading, availableContentTypes, active])
 
   return (
     <AdminShell
@@ -59,47 +75,66 @@ export function AdminCMSView() {
       title="Manajemen Website Publik"
       subtitle="Kelola seluruh konten website publik: berita, agenda, library, galeri, pengurus, pengumuman, dan FAQ"
     >
-      {/* Content type selector */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 mb-6">
-        {CONTENT_TYPES.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setActive(c.id)}
-            className={`group rounded-xl border p-3 text-left transition-all ${
-              active === c.id
-                ? 'border-gold bg-gold/5 shadow-premium'
-                : 'border-border bg-card hover:border-gold/40 hover:shadow-premium'
-            }`}
-          >
-            <div className={`grid h-9 w-9 place-items-center rounded-lg mb-2 transition-colors ${
-              active === c.id ? 'bg-navy-gradient text-white' : 'bg-muted text-muted-foreground group-hover:bg-gold/10 group-hover:text-gold'
-            }`}>
-              <c.icon className="h-4 w-4" />
-            </div>
-            <div className="font-semibold text-xs text-navy dark:text-white leading-tight">{c.label}</div>
-            <div className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{c.desc}</div>
-          </button>
-        ))}
-      </div>
+      {permsLoading ? (
+        <div className="py-12 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-navy mb-2" />
+          <p className="text-sm text-muted-foreground">Memuat hak akses modul...</p>
+        </div>
+      ) : availableContentTypes.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12 space-y-3">
+            <AlertCircle className="h-12 w-12 text-amber-500 mx-auto" />
+            <h3 className="font-semibold text-lg text-navy dark:text-white">Akses Terbatas</h3>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              Grup Anda tidak memiliki izin untuk mengelola bagian apapun pada Website Publik (CMS). Silakan hubungi Administrator.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Content type selector */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 mb-6">
+            {availableContentTypes.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setActive(c.id)}
+                className={`group rounded-xl border p-3 text-left transition-all ${
+                  active === c.id
+                    ? 'border-gold bg-gold/5 shadow-premium'
+                    : 'border-border bg-card hover:border-gold/40 hover:shadow-premium'
+                }`}
+              >
+                <div className={`grid h-9 w-9 place-items-center rounded-lg mb-2 transition-colors ${
+                  active === c.id ? 'bg-navy-gradient text-white' : 'bg-muted text-muted-foreground group-hover:bg-gold/10 group-hover:text-gold'
+                }`}>
+                  <c.icon className="h-4 w-4" />
+                </div>
+                <div className="font-semibold text-xs text-navy dark:text-white leading-tight">{c.label}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{c.desc}</div>
+              </button>
+            ))}
+          </div>
 
-      {/* Active content manager */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={active}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
-        >
-          {active === 'articles' && <ArticlesManager />}
-          {active === 'events' && <EventsManager />}
-          {active === 'library' && <LibraryManager />}
-          {active === 'gallery' && <GalleryManager />}
-          {active === 'organization' && <OrganizationManager />}
-          {active === 'announcements' && <AnnouncementsManager />}
-          {active === 'faq' && <FaqManager />}
-        </motion.div>
-      </AnimatePresence>
+          {/* Active content manager */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={active}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {active === 'articles' && <ArticlesManager />}
+              {active === 'events' && <EventsManager />}
+              {active === 'library' && <LibraryManager />}
+              {active === 'gallery' && <GalleryManager />}
+              {active === 'organization' && <OrganizationManager />}
+              {active === 'announcements' && <AnnouncementsManager />}
+              {active === 'faq' && <FaqManager />}
+            </motion.div>
+          </AnimatePresence>
+        </>
+      )}
     </AdminShell>
   )
 }
@@ -867,7 +902,7 @@ function EventDialog({ open, onOpenChange, event, onSaved }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-premium">
+      <DialogContent className="max-w-4xl lg:max-w-5xl w-full max-h-[90vh] overflow-y-auto scrollbar-premium">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-navy dark:text-white">
             <Calendar className="h-5 w-5 text-gold" /> {event ? 'Edit Kegiatan' : 'Tambah Kegiatan Baru'}
@@ -934,6 +969,8 @@ interface LibItem {
   id: string; title: string; slug: string; description: string; category: string
   author: string | null; publisher: string | null; year: number | null; pages: number | null
   tags: string | null; downloadCount: number; viewCount: number
+  fileUrl?: string | null; fileSize?: number | null; coverImage?: string | null
+  accessLevel?: string
 }
 
 const LIB_CATEGORIES = ['BUKU', 'EBOOK', 'JURNAL', 'PEDOMAN', 'REGULASI', 'SOP', 'TEMPLATE', 'PRESENTASI', 'MAJALAH', 'VIDEO', 'AUDIO']
@@ -1009,6 +1046,18 @@ function LibraryManager() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <Badge variant="outline" className="text-[10px]">{i.category}</Badge>
+                    {i.accessLevel === 'ANGGOTA' ? (
+                      <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 text-[10px]">🔒 Khusus Anggota</Badge>
+                    ) : (
+                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 text-[10px]">🌐 Publik</Badge>
+                    )}
+                    {i.fileUrl ? (
+                      <Badge variant="outline" className="text-[10px] text-blue-600 border-blue-200">
+                        📄 File Ada ({i.fileSize ? `${(i.fileSize / (1024 * 1024)).toFixed(1)} MB` : 'Dokumen'})
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200">⚠️ Tanpa File</Badge>
+                    )}
                     <span className="text-[10px] text-muted-foreground">{i.year ?? '-'}</span>
                   </div>
                   <h3 className="font-semibold text-sm text-navy dark:text-white line-clamp-1">{i.title}</h3>
@@ -1043,9 +1092,14 @@ function LibraryDialog({ open, onOpenChange, item, onSaved }: {
 }) {
   const [form, setForm] = React.useState({
     title: '', description: '', category: 'BUKU', author: '', publisher: '',
-    year: '', pages: '', tags: '', fileUrl: '', fileSize: '',
+    year: '', pages: '', tags: '', fileUrl: '', fileSize: '', coverImage: '',
+    accessLevel: 'PUBLIK',
   })
   const [saving, setSaving] = React.useState(false)
+  const [uploadingFile, setUploadingFile] = React.useState(false)
+  const [uploadingCover, setUploadingCover] = React.useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const coverInputRef = React.useRef<HTMLInputElement>(null)
 
   React.useEffect(() => {
     if (item) {
@@ -1053,12 +1107,55 @@ function LibraryDialog({ open, onOpenChange, item, onSaved }: {
         title: item.title, description: item.description, category: item.category,
         author: item.author || '', publisher: item.publisher || '',
         year: item.year?.toString() || '', pages: item.pages?.toString() || '',
-        tags: item.tags || '', fileUrl: '', fileSize: '',
+        tags: item.tags || '', fileUrl: item.fileUrl || '', fileSize: item.fileSize?.toString() || '',
+        coverImage: item.coverImage || '', accessLevel: item.accessLevel || 'PUBLIK',
       })
     } else {
-      setForm({ title: '', description: '', category: 'BUKU', author: '', publisher: '', year: '', pages: '', tags: '', fileUrl: '', fileSize: '' })
+      setForm({
+        title: '', description: '', category: 'BUKU', author: '', publisher: '',
+        year: '', pages: '', tags: '', fileUrl: '', fileSize: '', coverImage: '',
+        accessLevel: 'PUBLIK',
+      })
     }
   }, [item, open])
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingFile(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/library/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error || 'Gagal unggah file'); return }
+      setForm((prev) => ({ ...prev, fileUrl: data.url, fileSize: data.size.toString() }))
+      toast.success(`File "${file.name}" berhasil diunggah`)
+    } catch {
+      toast.error('Gagal mengunggah file')
+    } finally {
+      setUploadingFile(false)
+    }
+  }
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingCover(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/events-admin/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error || 'Gagal unggah sampul'); return }
+      setForm((prev) => ({ ...prev, coverImage: data.url }))
+      toast.success('Sampul berhasil diunggah')
+    } catch {
+      toast.error('Gagal mengunggah sampul')
+    } finally {
+      setUploadingCover(false)
+    }
+  }
 
   const submit = async () => {
     if (!form.title) { toast.error('Judul wajib diisi'); return }
@@ -1082,14 +1179,15 @@ function LibraryDialog({ open, onOpenChange, item, onSaved }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-premium">
+      <DialogContent className="max-w-4xl lg:max-w-5xl w-full max-h-[90vh] overflow-y-auto scrollbar-premium">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-navy dark:text-white">
-            <BookOpen className="h-5 w-5 text-gold" /> {item ? 'Edit Koleksi' : 'Tambah Koleksi Baru'}
+            <BookOpen className="h-5 w-5 text-gold" /> {item ? 'Edit Koleksi Digital' : 'Tambah Koleksi Digital Baru'}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          <Field label="Judul *" value={form.title} onChange={(v) => setForm({ ...form, title: v })} />
+          <Field label="Judul Koleksi *" value={form.title} onChange={(v) => setForm({ ...form, title: v })} placeholder="Judul buku, ebook, regulasi..." />
+
           <div className="grid sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Kategori</Label>
@@ -1100,30 +1198,101 @@ function LibraryDialog({ open, onOpenChange, item, onSaved }: {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Aksesibilitas (Hak Akses)</Label>
+              <Select value={form.accessLevel} onValueChange={(v) => setForm({ ...form, accessLevel: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PUBLIK">🌐 Publik (Semua Orang)</SelectItem>
+                  <SelectItem value="ANGGOTA">🔒 Khusus Anggota IAA</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-3">
+            <Field label="Penulis / Pengarang" value={form.author} onChange={(v) => setForm({ ...form, author: v })} />
+            <Field label="Penerbit" value={form.publisher} onChange={(v) => setForm({ ...form, publisher: v })} />
             <Field label="Tahun" value={form.year} onChange={(v) => setForm({ ...form, year: v })} type="number" />
           </div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Penulis" value={form.author} onChange={(v) => setForm({ ...form, author: v })} />
-            <Field label="Penerbit" value={form.publisher} onChange={(v) => setForm({ ...form, publisher: v })} />
-          </div>
+
           <div className="space-y-2">
             <Label>Deskripsi</Label>
-            <RichTextEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Deskripsi koleksi... (Markdown supported)" />
+            <RichTextEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Deskripsi koleksi..." />
           </div>
+
           <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Jumlah Halaman" value={form.pages} onChange={(v) => setForm({ ...form, pages: v })} type="number" />
-            <Field label="Tags" value={form.tags} onChange={(v) => setForm({ ...form, tags: v })} placeholder="regulasi, kearsipan" />
+            <Field label="Tags / Kata Kunci" value={form.tags} onChange={(v) => setForm({ ...form, tags: v })} placeholder="regulasi, arsip, sop" />
           </div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="URL File" value={form.fileUrl} onChange={(v) => setForm({ ...form, fileUrl: v })} placeholder="/uploads/file.pdf" />
-            <Field label="Ukuran File (bytes)" value={form.fileSize} onChange={(v) => setForm({ ...form, fileSize: v })} type="number" />
+
+          {/* Upload File Dokumen */}
+          <div className="p-4 rounded-xl border border-border bg-muted/30 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="font-semibold text-sm flex items-center gap-2">
+                <Upload className="h-4 w-4 text-gold" /> Upload File Dokumen / Buku
+              </Label>
+              {form.fileUrl && (
+                <Badge variant="outline" className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  File Ter-upload
+                </Badge>
+              )}
+            </div>
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="hidden"
+              accept=".pdf,.epub,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.rar,.txt,.mp3,.mp4"
+            />
+
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingFile}
+                className="w-full sm:w-auto border-gold/40 hover:bg-gold/10"
+              >
+                {uploadingFile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                {uploadingFile ? 'Mengunggah...' : 'Pilih File Dokumen'}
+              </Button>
+              <span className="text-xs text-muted-foreground truncate flex-1">
+                {form.fileUrl ? (
+                  <span className="font-mono text-[11px]">{form.fileUrl} {form.fileSize ? `(${(Number(form.fileSize) / (1024 * 1024)).toFixed(2)} MB)` : ''}</span>
+                ) : (
+                  'Mendukung PDF, EPUB, DOCX, PPT, ZIP, dll (Maks 50MB)'
+                )}
+              </span>
+              {form.fileUrl && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setForm({ ...form, fileUrl: '', fileSize: '' })} className="text-red-500 hover:text-red-700 text-xs">
+                  Hapus File
+                </Button>
+              )}
+            </div>
+
+            <Field label="URL Manual (Opsional)" value={form.fileUrl} onChange={(v) => setForm({ ...form, fileUrl: v })} placeholder="Atau tempel URL external..." />
+          </div>
+
+          {/* Cover Image Upload */}
+          <div className="p-3 rounded-xl border border-border bg-muted/20 space-y-2">
+            <Label className="text-xs font-semibold">Gambar Sampul (Opsional)</Label>
+            <input type="file" ref={coverInputRef} onChange={handleCoverUpload} className="hidden" accept="image/*" />
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => coverInputRef.current?.click()} disabled={uploadingCover}>
+                {uploadingCover ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-2 h-3.5 w-3.5" />}
+                {uploadingCover ? 'Mengunggah...' : 'Unggah Sampul'}
+              </Button>
+              <Input value={form.coverImage} onChange={(e) => setForm({ ...form, coverImage: e.target.value })} placeholder="URL gambar sampul..." className="h-8 text-xs flex-1" />
+            </div>
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={submit} disabled={saving} className="bg-navy-gradient">
+          <Button onClick={submit} disabled={saving || uploadingFile || uploadingCover} className="bg-navy-gradient">
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            {saving ? 'Menyimpan...' : 'Simpan'}
+            {saving ? 'Menyimpan...' : 'Simpan Koleksi'}
           </Button>
         </DialogFooter>
       </DialogContent>

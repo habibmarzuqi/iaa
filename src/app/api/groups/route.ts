@@ -28,12 +28,19 @@ async function getSessionUser(req: NextRequest) {
 
 // All admin modules that can be permission-controlled
 export const ADMIN_MODULES = [
-  { key: 'admin-dashboard', label: 'Dashboard' },
-  { key: 'admin-cms', label: 'Website Publik (CMS)' },
+  { key: 'admin-dashboard', label: 'Dashboard Utama' },
+  { key: 'admin-cms', label: 'Website Publik (CMS - Semua Akses Bagian)' },
+  { key: 'cms-articles', label: 'CMS: Berita & Artikel' },
+  { key: 'cms-events', label: 'CMS: Agenda Kegiatan' },
+  { key: 'cms-library', label: 'CMS: Digital Library & Dokumen' },
+  { key: 'cms-gallery', label: 'CMS: Galeri Foto' },
+  { key: 'cms-organization', label: 'CMS: Struktur Pengurus' },
+  { key: 'cms-announcements', label: 'CMS: Pengumuman & Banner' },
+  { key: 'cms-faq', label: 'CMS: Pertanyaan FAQ' },
   { key: 'admin-menu', label: 'Manajemen Menu' },
   { key: 'admin-members', label: 'Manajemen Anggota' },
-  { key: 'admin-groups', label: 'Manajemen Grup' },
-  { key: 'admin-inbox', label: 'Pesan Masuk' },
+  { key: 'admin-groups', label: 'Manajemen Grup & Permission' },
+  { key: 'admin-inbox', label: 'Pesan Masuk (Kontak)' },
   { key: 'admin-files', label: 'File Manager' },
   { key: 'admin-site-settings', label: 'Pengaturan Situs' },
   { key: 'admin-archives', label: 'Arsip Digital' },

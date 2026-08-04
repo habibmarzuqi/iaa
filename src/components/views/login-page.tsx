@@ -8,18 +8,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ArrowLeft, Eye, EyeOff, Lock, Mail, ShieldCheck, Sparkles, Loader2, KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
-import { roleLabel } from '@/lib/store'
-
-const DEMO_CREDENTIALS = [
-  { role: 'SUPER_ADMIN' as const, email: 'superadmin@iaa-anri.go.id', label: 'Super Admin', desc: 'Akses penuh sistem' },
-  { role: 'ADMINISTRATOR' as const, email: 'admin@iaa-anri.go.id', label: 'Administrator', desc: 'Kelola konten & anggota' },
-  { role: 'PENGURUS' as const, email: 'pengurus@iaa-anri.go.id', label: 'Pengurus', desc: 'Monitoring & approval' },
-  { role: 'ANGGOTA' as const, email: 'anggota@iaa-anri.go.id', label: 'Anggota', desc: 'Portal anggota' },
-]
 
 export function LoginPage() {
   const { setUser, setView } = useApp()
@@ -62,11 +53,6 @@ export function LoginPage() {
     }
   }
 
-  const fillDemo = (demoEmail: string) => {
-    setEmail(demoEmail)
-    setPassword('iaa12345')
-    toast.info('Kredensial demo terisi. Klik "Masuk" untuk lanjut.')
-  }
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
@@ -178,33 +164,7 @@ export function LoginPage() {
               </Button>
             </div>
 
-            <div className="relative">
-              <Separator />
-              <span className="absolute left-1/2 -translate-x-1/2 -top-2.5 px-3 bg-background text-xs text-muted-foreground uppercase tracking-wide">
-                Akun Demo
-              </span>
-            </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              {DEMO_CREDENTIALS.map((d) => (
-                <button
-                  key={d.role}
-                  onClick={() => fillDemo(d.email)}
-                  type="button"
-                  className="group rounded-lg border border-border bg-card p-2.5 text-left hover:border-gold/40 hover:shadow-premium transition-all"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-semibold text-navy dark:text-white">{d.label}</span>
-                    <Badge variant="outline" className="text-[9px] px-1.5 py-0">{roleLabel(d.role)}</Badge>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground truncate">{d.desc}</div>
-                </button>
-              ))}
-            </div>
-
-            <p className="text-center text-xs text-muted-foreground">
-              Password demo: <code className="bg-muted px-1.5 py-0.5 rounded text-navy dark:text-white font-mono">iaa12345</code>
-            </p>
 
             <div className="text-center pt-2 border-t border-border">
               <p className="text-xs text-muted-foreground">

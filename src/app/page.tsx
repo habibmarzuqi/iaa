@@ -114,7 +114,7 @@ export default function Home() {
     case 'admin-cert-templates':
     case 'admin-inbox':
     case 'admin-groups':
-      if (!user || !['SUPER_ADMIN', 'ADMINISTRATOR', 'PENGURUS'].includes(user.role)) {
+      if (!user) {
         return <LoginPage />
       }
       // For non-dashboard views, check group permission for non-SUPER_ADMIN users

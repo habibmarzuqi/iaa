@@ -20,7 +20,7 @@ import {
 import {
   Users, Plus, Search, Edit2, Trash2, Loader2, Save, Upload, Download, FileText,
   Fingerprint, Building2, Award, GraduationCap, CheckCircle2, X,
-  Mail, Phone as PhoneIcon, User as UserIcon,
+  Mail, Phone as PhoneIcon, User as UserIcon, Filter, RotateCcw, SlidersHorizontal, ArrowUpDown,
 } from 'lucide-react'
 import { formatDate } from '@/lib/helpers'
 import { toast } from 'sonner'
@@ -43,7 +43,7 @@ interface Member {
   user: { email: string; role: string; avatar: string | null }
 }
 
-const LEVELS = ['PEMULA', 'MUDA', 'MADYA', 'UTAMA']
+const LEVELS = ['PEMULA', 'TERAMPIL', 'MAHIR', 'PENYELIA', 'AHLI PERTAMA', 'AHLI MUDA', 'AHLI MADYA', 'AHLI UTAMA', 'MUDA', 'MADYA', 'UTAMA']
 const STATUSES = ['AKTIF', 'TIDAK_AKTIF', 'PENSIUN', 'MENINGGAL']
 const ROLES = ['ANGGOTA', 'PENGURUS', 'ADMINISTRATOR', 'SUPER_ADMIN']
 
@@ -52,6 +52,13 @@ export function AdminMembersView() {
   const [loading, setLoading] = React.useState(true)
   const [search, setSearch] = React.useState('')
   const [searchInput, setSearchInput] = React.useState('')
+  const [filterStatus, setFilterStatus] = React.useState('ALL')
+  const [filterLevel, setFilterLevel] = React.useState('ALL')
+  const [filterRole, setFilterRole] = React.useState('ALL')
+  const [filterWorkUnit, setFilterWorkUnit] = React.useState('ALL')
+  const [sortBy, setSortBy] = React.useState('memberNumber')
+  const [sortOrder, setSortOrder] = React.useState<'asc' | 'desc'>('asc')
+  const [availableWorkUnits, setAvailableWorkUnits] = React.useState<string[]>([])
   const [page, setPage] = React.useState(1)
   const [pageSize, setPageSize] = React.useState(20)
   const [total, setTotal] = React.useState(0)
@@ -63,6 +70,24 @@ export function AdminMembersView() {
   const [importing, setImporting] = React.useState(false)
   const [downloadingTemplate, setDownloadingTemplate] = React.useState(false)
 
+  const activeFiltersCount = (search ? 1 : 0)
+    + (filterStatus !== 'ALL' ? 1 : 0)
+    + (filterLevel !== 'ALL' ? 1 : 0)
+    + (filterRole !== 'ALL' ? 1 : 0)
+    + (filterWorkUnit !== 'ALL' ? 1 : 0)
+
+  const resetFilters = () => {
+    setSearchInput('')
+    setSearch('')
+    setFilterStatus('ALL')
+    setFilterLevel('ALL')
+    setFilterRole('ALL')
+    setFilterWorkUnit('ALL')
+    setSortBy('memberNumber')
+    setSortOrder('asc')
+    setPage(1)
+  }
+
   const load = React.useCallback(() => {
     setLoading(true)
     const params = new URLSearchParams({
@@ -70,15 +95,25 @@ export function AdminMembersView() {
       limit: String(pageSize),
     })
     if (search) params.set('search', search)
+    if (filterStatus !== 'ALL') params.set('status', filterStatus)
+    if (filterLevel !== 'ALL') params.set('level', filterLevel)
+    if (filterRole !== 'ALL') params.set('role', filterRole)
+    if (filterWorkUnit !== 'ALL') params.set('workUnit', filterWorkUnit)
+    if (sortBy) params.set('sortBy', sortBy)
+    if (sortOrder) params.set('sortOrder', sortOrder)
+
     fetch(`/api/members-admin?${params.toString()}`)
       .then((r) => r.json())
       .then((d) => {
         setMembers(d.members ?? [])
         setTotal(d.total ?? 0)
         setTotalPages(d.totalPages ?? 1)
+        if (Array.isArray(d.availableWorkUnits)) {
+          setAvailableWorkUnits(d.availableWorkUnits)
+        }
       })
       .finally(() => setLoading(false))
-  }, [page, pageSize, search])
+  }, [page, pageSize, search, filterStatus, filterLevel, filterRole, filterWorkUnit, sortBy, sortOrder])
 
   React.useEffect(() => { load() }, [load])
 
@@ -189,13 +224,216 @@ export function AdminMembersView() {
         ))}
       </div>
 
-      {/* Search */}
+      {/* Dynamic Search & Filter Panel */}
       <Card>
-        <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Cari nama, nomor anggota, NIP, email..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="pl-10" />
+        <CardContent className="p-4 space-y-4">
+          {/* Main search input bar */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Cari nama, nomor anggota, NIP, instansi, jabatan, email..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="pl-9 pr-9 text-xs"
+              />
+              {searchInput && (
+                <button
+                  onClick={() => { setSearchInput(''); setSearch('') }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            {activeFiltersCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetFilters}
+                className="text-xs text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/30 flex-shrink-0"
+              >
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reset Filter ({activeFiltersCount})
+              </Button>
+            )}
           </div>
+
+          {/* Dynamic Filter Selectors */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-1 border-t border-border">
+            {/* Status Filter */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Status
+              </label>
+              <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(1) }}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Semua Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Semua Status</SelectItem>
+                  {STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Level Filter */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                <Award className="h-3 w-3 text-gold" /> Jenjang Arsiparis
+              </label>
+              <Select value={filterLevel} onValueChange={(v) => { setFilterLevel(v); setPage(1) }}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Semua Jenjang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Semua Jenjang</SelectItem>
+                  {LEVELS.map((l) => (
+                    <SelectItem key={l} value={l}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Role Filter */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                <UserIcon className="h-3 w-3 text-blue-500" /> Hak Akses Role
+              </label>
+              <Select value={filterRole} onValueChange={(v) => { setFilterRole(v); setPage(1) }}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Semua Role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Semua Role</SelectItem>
+                  {ROLES.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Unit Kerja Filter */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                <Building2 className="h-3 w-3 text-purple-500" /> Unit Kerja / Instansi
+              </label>
+              <Select value={filterWorkUnit} onValueChange={(v) => { setFilterWorkUnit(v); setPage(1) }}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Semua Unit Kerja" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Semua Instansi ({availableWorkUnits.length})</SelectItem>
+                  {availableWorkUnits.map((w) => (
+                    <SelectItem key={w} value={w}>{w}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Sorting */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                <ArrowUpDown className="h-3 w-3 text-slate-500" /> Urutkan Berdasarkan
+              </label>
+              <div className="flex gap-1">
+                <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setPage(1) }}>
+                  <SelectTrigger className="h-8 text-xs flex-1">
+                    <SelectValue placeholder="Urutkan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="memberNumber">No. Anggota</SelectItem>
+                    <SelectItem value="fullName">Nama (A-Z)</SelectItem>
+                    <SelectItem value="joinDate">Tgl Bergabung</SelectItem>
+                    <SelectItem value="arsiparisLevel">Jenjang</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0 flex-shrink-0"
+                  title={sortOrder === 'asc' ? 'Urutan Naik (A-Z)' : 'Urutan Turun (Z-A)'}
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                >
+                  <ArrowUpDown className={`h-3.5 w-3.5 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Active Filter Chips */}
+          {activeFiltersCount > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/50 text-xs text-muted-foreground">
+              <span className="text-[11px] font-medium">Filter Aktif:</span>
+              {search && (
+                <Badge variant="secondary" className="text-[10px] gap-1 bg-muted pl-2 pr-1 py-0.5 font-normal">
+                  Kata Kunci: "{search}"
+                  <button
+                    type="button"
+                    onClick={() => { setSearchInput(''); setSearch(''); setPage(1) }}
+                    className="h-4 w-4 rounded-full inline-flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/20 transition-colors text-muted-foreground hover:text-red-600"
+                    title="Hapus filter kata kunci"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+              {filterStatus !== 'ALL' && (
+                <Badge variant="secondary" className="text-[10px] gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 pl-2 pr-1 py-0.5 font-normal">
+                  Status: {filterStatus}
+                  <button
+                    type="button"
+                    onClick={() => { setFilterStatus('ALL'); setPage(1) }}
+                    className="h-4 w-4 rounded-full inline-flex items-center justify-center hover:bg-emerald-200 dark:hover:bg-emerald-800 transition-colors text-emerald-700 dark:text-emerald-300 hover:text-red-600"
+                    title="Hapus filter status"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+              {filterLevel !== 'ALL' && (
+                <Badge variant="secondary" className="text-[10px] gap-1 bg-gold/20 text-gold-dark dark:text-gold pl-2 pr-1 py-0.5 font-normal">
+                  Jenjang: {filterLevel}
+                  <button
+                    type="button"
+                    onClick={() => { setFilterLevel('ALL'); setPage(1) }}
+                    className="h-4 w-4 rounded-full inline-flex items-center justify-center hover:bg-gold/30 transition-colors text-gold-dark dark:text-gold hover:text-red-600"
+                    title="Hapus filter jenjang"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+              {filterRole !== 'ALL' && (
+                <Badge variant="secondary" className="text-[10px] gap-1 bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 pl-2 pr-1 py-0.5 font-normal">
+                  Role: {filterRole}
+                  <button
+                    type="button"
+                    onClick={() => { setFilterRole('ALL'); setPage(1) }}
+                    className="h-4 w-4 rounded-full inline-flex items-center justify-center hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors text-blue-700 dark:text-blue-300 hover:text-red-600"
+                    title="Hapus filter role"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+              {filterWorkUnit !== 'ALL' && (
+                <Badge variant="secondary" className="text-[10px] gap-1 bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 pl-2 pr-1 py-0.5 font-normal">
+                  Unit Kerja: {filterWorkUnit}
+                  <button
+                    type="button"
+                    onClick={() => { setFilterWorkUnit('ALL'); setPage(1) }}
+                    className="h-4 w-4 rounded-full inline-flex items-center justify-center hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors text-purple-700 dark:text-purple-300 hover:text-red-600"
+                    title="Hapus filter unit kerja"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

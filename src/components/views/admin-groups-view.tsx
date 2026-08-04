@@ -532,10 +532,17 @@ function ManageGroupDialog({ groupId, modules, onOpenChange, onChanged }: {
                     </thead>
                     <tbody>
                       {modules.map((m) => {
+                        const isSubModule = m.key.startsWith('cms-')
+                        const isMainCms = m.key === 'admin-cms'
                         const p = permissions[m.key] || { module: m.key, canView: false, canCreate: false, canEdit: false, canDelete: false }
                         return (
-                          <tr key={m.key} className="border-b border-border/50 hover:bg-muted/30">
-                            <td className="py-2.5 px-2 font-medium text-navy dark:text-white">{m.label}</td>
+                          <tr key={m.key} className={`border-b border-border/50 hover:bg-muted/30 ${isSubModule ? 'bg-muted/20' : isMainCms ? 'bg-gold/5 font-bold' : ''}`}>
+                            <td className={`py-2.5 px-2 font-medium text-navy dark:text-white ${isSubModule ? 'pl-7 text-xs text-foreground/80' : ''}`}>
+                              {isSubModule && <span className="text-muted-foreground font-mono mr-1.5">↳</span>}
+                              {m.label}
+                              {isSubModule && <Badge variant="outline" className="ml-2 text-[9px] border-gold/40 text-gold font-normal">Sub-Modul CMS</Badge>}
+                              {isMainCms && <Badge variant="outline" className="ml-2 text-[9px] border-blue-400/40 text-blue-600 font-normal">Semua Bagian</Badge>}
+                            </td>
                             <td className="text-center py-2.5 px-2">
                               <div className="grid place-items-center">
                                 <Switch checked={p.canView} onCheckedChange={(c) => togglePerm(m.key, 'canView', c)} />

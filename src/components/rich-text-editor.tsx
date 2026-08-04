@@ -13,6 +13,7 @@ import {
   ListsToggle,
   BlockTypeSelect,
   linkDialogPlugin,
+  CreateLink,
   UndoRedo,
   Separator,
 } from '@mdxeditor/editor'
@@ -51,7 +52,8 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
                 <BlockTypeSelect />
                 <Separator />
                 <ListsToggle />
-                <linkDialogPlugin />
+                <Separator />
+                <CreateLink />
               </>
             ),
           }),

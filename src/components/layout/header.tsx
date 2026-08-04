@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { useApp, hasPengurusAccess, roleLabel, roleBadgeColor } from '@/lib/store'
+import { usePermissions } from '@/lib/use-permissions'
 import { IAALogo } from '@/components/iaa-logo'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
@@ -73,12 +74,14 @@ function isNavGroup(item: NavEntry): item is NavGroup {
 
 export function Header() {
   const { user, setView, logout } = useApp()
+  const { permissions } = usePermissions()
   const { t } = useTranslation()
   const [siteSettings, setSiteSettings] = React.useState<Record<string, string>>({})
   const [settingsLoaded, setSettingsLoaded] = React.useState(false)
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [scrolled, setScrolled] = React.useState(false)
   const [searchOpen, setSearchOpen] = React.useState(false)
+  const hasGroupPerms = Object.keys(permissions).some((k) => permissions[k]?.canView)
 
   // Load site settings on mount
   React.useEffect(() => {
@@ -278,11 +281,16 @@ export function Header() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {user.role === 'ANGGOTA' && (
-                  <DropdownMenuItem onClick={() => setView({ name: 'member-dashboard' })}>
-                    <LayoutDashboard className="mr-2 h-4 w-4" /> {t('nav.dashboardAnggota')}
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem onClick={() => setView({ name: 'member-dashboard' })}>
+                      <LayoutDashboard className="mr-2 h-4 w-4" /> {t('nav.dashboardAnggota')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setView({ name: 'member-dashboard', tab: 'library' })}>
+                      <BookOpen className="mr-2 h-4 w-4 text-gold" /> Digital Library Anggota
+                    </DropdownMenuItem>
+                  </>
                 )}
-                {hasPengurusAccess(user.role) && (
+                {(hasPengurusAccess(user.role) || hasGroupPerms) && (
                   <DropdownMenuItem onClick={() => setView({ name: 'admin-dashboard' })}>
                     <LayoutDashboard className="mr-2 h-4 w-4" /> {t('nav.dashboardAdmin')}
                   </DropdownMenuItem>

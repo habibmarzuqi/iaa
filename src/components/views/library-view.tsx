@@ -8,20 +8,56 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, BookOpen, Download, Eye, FileText, BookMarked, Scale, FileCheck, File, Presentation, Newspaper, Video, Headphones, Search } from 'lucide-react'
+import {
+  ArrowLeft,
+  BookOpen,
+  Download,
+  Eye,
+  FileText,
+  BookMarked,
+  Scale,
+  FileCheck,
+  File,
+  Presentation,
+  Newspaper,
+  Video,
+  Headphones,
+  Search,
+  Lock,
+  Globe,
+} from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 
 interface LibItem {
-  id: string; title: string; slug: string; description: string; category: string
-  author: string | null; publisher: string | null; year: number | null; pages: number | null
-  downloadCount: number; viewCount: number
+  id: string
+  title: string
+  slug: string
+  description: string
+  category: string
+  author: string | null
+  publisher: string | null
+  year: number | null
+  pages: number | null
+  downloadCount: number
+  viewCount: number
+  fileUrl?: string | null
+  fileSize?: number | null
+  accessLevel?: string
 }
 
 const CAT_ICONS: Record<string, any> = {
-  BUKU: BookOpen, EBOOK: BookMarked, JURNAL: FileText, PEDOMAN: BookOpen,
-  REGULASI: Scale, SOP: FileCheck, TEMPLATE: File, PRESENTASI: Presentation,
-  MAJALAH: Newspaper, VIDEO: Video, AUDIO: Headphones,
+  BUKU: BookOpen,
+  EBOOK: BookMarked,
+  JURNAL: FileText,
+  PEDOMAN: BookOpen,
+  REGULASI: Scale,
+  SOP: FileCheck,
+  TEMPLATE: File,
+  PRESENTASI: Presentation,
+  MAJALAH: Newspaper,
+  VIDEO: Video,
+  AUDIO: Headphones,
 }
 
 const CAT_COLORS: Record<string, string> = {
@@ -39,25 +75,56 @@ const CAT_COLORS: Record<string, string> = {
 }
 
 export function LibraryView() {
-  const { setView } = useApp()
+  const { user, setView } = useApp()
   const [items, setItems] = React.useState<LibItem[]>([])
   const [loading, setLoading] = React.useState(true)
   const [filter, setFilter] = React.useState('ALL')
+  const [accessFilter, setAccessFilter] = React.useState('ALL')
   const [search, setSearch] = React.useState('')
 
   React.useEffect(() => {
-    fetch('/api/library?limit=50')
+    fetch('/api/library?limit=100')
       .then((r) => r.json())
       .then((d) => setItems(d.items ?? []))
       .finally(() => setLoading(false))
   }, [])
 
   const cats = ['ALL', 'BUKU', 'EBOOK', 'JURNAL', 'PEDOMAN', 'REGULASI', 'SOP', 'TEMPLATE', 'PRESENTASI', 'MAJALAH', 'VIDEO', 'AUDIO']
+
   const filtered = items.filter((i) => {
     if (filter !== 'ALL' && i.category !== filter) return false
-    if (search && !i.title.toLowerCase().includes(search.toLowerCase())) return false
+    if (accessFilter !== 'ALL' && (i.accessLevel || 'PUBLIK') !== accessFilter) return false
+    if (search && !i.title.toLowerCase().includes(search.toLowerCase()) && !i.description?.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
+
+  const handleDownload = (item: LibItem) => {
+    const isMembersOnly = item.accessLevel === 'ANGGOTA'
+
+    if (isMembersOnly && !user) {
+      toast.error('Koleksi ini khusus Anggota IAA. Silakan masuk terlebih dahulu.', {
+        action: {
+          label: 'Masuk Portal',
+          onClick: () => setView({ name: 'login' }),
+        },
+      })
+      return
+    }
+
+    if (!item.fileUrl) {
+      toast.info('File dokumen belum diunggah oleh pengurus.')
+      return
+    }
+
+    const link = document.createElement('a')
+    link.href = item.fileUrl
+    link.download = item.title
+    link.target = '_blank'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast.success(`Mengunduh "${item.title}"...`)
+  }
 
   return (
     <PublicLayout>
@@ -74,14 +141,42 @@ export function LibraryView() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 lg:px-8 py-10">
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="flex flex-col md:flex-row gap-3 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Cari koleksi..."
-              value={search} onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
+              placeholder="Cari koleksi, regulasi, buku..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 h-11"
             />
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => setAccessFilter('ALL')}
+              className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                accessFilter === 'ALL' ? 'bg-navy-gradient text-white border-navy' : 'bg-card border-border text-muted-foreground hover:border-gold/40'
+              }`}
+            >
+              Semua Akses
+            </button>
+            <button
+              onClick={() => setAccessFilter('PUBLIK')}
+              className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 ${
+                accessFilter === 'PUBLIK' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-card border-border text-muted-foreground hover:border-emerald-500/40'
+              }`}
+            >
+              <Globe className="h-3.5 w-3.5" /> Akses Publik
+            </button>
+            <button
+              onClick={() => setAccessFilter('ANGGOTA')}
+              className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 ${
+                accessFilter === 'ANGGOTA' ? 'bg-purple-600 text-white border-purple-600' : 'bg-card border-border text-muted-foreground hover:border-purple-500/40'
+              }`}
+            >
+              <Lock className="h-3.5 w-3.5" /> Khusus Anggota
+            </button>
           </div>
         </div>
 
@@ -101,7 +196,9 @@ export function LibraryView() {
 
         {loading ? (
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-56 rounded-2xl" />)}
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-56 rounded-2xl" />
+            ))}
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
@@ -113,6 +210,8 @@ export function LibraryView() {
             {filtered.map((item, i) => {
               const Icon = CAT_ICONS[item.category] ?? FileText
               const colorClass = CAT_COLORS[item.category] ?? 'bg-muted text-muted-foreground'
+              const isMembersOnly = item.accessLevel === 'ANGGOTA'
+
               return (
                 <motion.div
                   key={item.id}
@@ -120,33 +219,69 @@ export function LibraryView() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05 }}
                 >
-                  <Card className="group h-full border-border hover:border-gold/40 hover:shadow-premium hover:-translate-y-1 transition-all cursor-pointer overflow-hidden">
-                    <CardContent className="p-5 space-y-3">
-                      <div className="flex items-start gap-3">
-                        <div className={`grid h-12 w-12 flex-shrink-0 place-items-center rounded-xl ${colorClass}`}>
-                          <Icon className="h-5 w-5" />
+                  <Card className="group h-full border-border hover:border-gold/40 hover:shadow-premium hover:-translate-y-1 transition-all cursor-pointer overflow-hidden flex flex-col justify-between">
+                    <CardContent className="p-5 space-y-3 flex-1 flex flex-col justify-between">
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <div className={`grid h-12 w-12 flex-shrink-0 place-items-center rounded-xl ${colorClass}`}>
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                              <Badge variant="outline" className={`text-[10px] uppercase tracking-wide ${colorClass} border-transparent`}>
+                                {item.category}
+                              </Badge>
+                              {isMembersOnly ? (
+                                <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border-purple-300 text-[10px] flex items-center gap-1">
+                                  <Lock className="h-3 w-3" /> Khusus Anggota
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 text-[10px] flex items-center gap-1">
+                                  <Globe className="h-3 w-3" /> Akses Publik
+                                </Badge>
+                              )}
+                            </div>
+                            <h3 className="font-semibold text-sm text-navy dark:text-white group-hover:text-blue-brand transition-colors line-clamp-2">
+                              {item.title}
+                            </h3>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <Badge variant="outline" className={`text-[10px] uppercase tracking-wide mb-1 ${colorClass} border-transparent`}>{item.category}</Badge>
-                          <h3 className="font-semibold text-sm text-navy dark:text-white group-hover:text-blue-brand transition-colors line-clamp-2">{item.title}</h3>
-                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{item.description}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{item.description}</p>
-                      <div className="flex items-center justify-between pt-3 border-t border-border text-[11px] text-muted-foreground">
-                        <span className="truncate">{item.author ?? '—'} {item.year ? `· ${item.year}` : ''}</span>
-                        <div className="flex items-center gap-3">
-                          <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {item.viewCount.toLocaleString('id-ID')}</span>
-                          <span className="flex items-center gap-1"><Download className="h-3 w-3" /> {item.downloadCount.toLocaleString('id-ID')}</span>
+
+                      <div className="space-y-3 pt-3 border-t border-border">
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span className="truncate">{item.author ?? '—'} {item.year ? `· ${item.year}` : ''}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {item.viewCount.toLocaleString('id-ID')}</span>
+                            <span className="flex items-center gap-1"><Download className="h-3 w-3" /> {item.downloadCount.toLocaleString('id-ID')}</span>
+                          </div>
                         </div>
+
+                        <Button
+                          size="sm"
+                          variant={isMembersOnly && !user ? 'outline' : 'default'}
+                          className={`w-full ${
+                            isMembersOnly && !user
+                              ? 'border-purple-300 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950'
+                              : 'bg-navy-gradient text-white hover:opacity-90'
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDownload(item)
+                          }}
+                        >
+                          {isMembersOnly && !user ? (
+                            <>
+                              <Lock className="mr-2 h-3.5 w-3.5 text-purple-600" /> Masuk untuk Unduh
+                            </>
+                          ) : (
+                            <>
+                              <Download className="mr-2 h-3.5 w-3.5" /> Unduh Dokumen {item.fileSize ? `(${(item.fileSize / (1024 * 1024)).toFixed(1)} MB)` : ''}
+                            </>
+                          )}
+                        </Button>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full border-gold/40 text-gold hover:bg-gold/10"
-                        onClick={(e) => { e.stopPropagation(); toast.info('Unduh akan segera tersedia') }}
-                      >
-                        <Download className="mr-2 h-3.5 w-3.5" /> Unduh
-                      </Button>
                     </CardContent>
                   </Card>
                 </motion.div>
