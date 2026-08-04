@@ -47,6 +47,7 @@ iaa-digital/
 │   │       ├── articles-revisions/ # Revision history
 │   │       ├── events/             # CRUD agenda
 │   │       ├── library/            # CRUD digital library
+│   │       │   └── upload/         # Upload digital library files
 │   │       ├── gallery/            # CRUD album + upload + reorder
 │   │       │   └── upload/         # Photo upload (sharp + watermark)
 │   │       ├── organization/       # CRUD pengurus
@@ -57,7 +58,8 @@ iaa-digital/
 │   │       ├── certificates/       # E-certificate + verification
 │   │       ├── registrations/      # Event registration flow
 │   │       ├── members/            # Member profile + certs + regs
-│   │       ├── members-list/       # List all members (admin)
+│   │       ├── members-admin/      # Admin member management + dynamic filters
+│   │       ├── groups/             # Group management & module permissions
 │   │       ├── dashboard/          # Admin dashboard stats
 │   │       ├── notifications/      # Notification CRUD
 │   │       ├── media/              # Media library + sharp variants
@@ -135,6 +137,7 @@ iaa-digital/
 │   ├── lib/                        # Utilities & hooks
 │   │   ├── db.ts                   # Prisma client
 │   │   ├── store.ts                # Zustand store (auth + navigation)
+│   │   ├── use-permissions.ts      # Group & sub-module permission hook
 │   │   ├── i18n.ts                 # i18n dictionary (300+ keys, ID/EN)
 │   │   ├── use-site-settings.ts    # Site settings hook
 │   │   ├── helpers.ts              # Date format, bytes format, dll

@@ -31,7 +31,9 @@ Setelah login sebagai admin, Anda akan melihat sidebar dengan 10 menu:
 | Menu | Fungsi |
 |------|--------|
 | **Dashboard** | Statistik, charts, recent activity |
-| **Website Publik (CMS)** | Kelola berita, agenda, library, galeri, pengurus, pengumuman |
+| **Website Publik (CMS)** | Kelola berita, agenda, library, galeri, pengurus, pengumuman, FAQ (tergantung hak akses sub-modul) |
+| **Manajemen Anggota** | Kelola data anggota, filter dinamis multi-kriteria, pengurutan, ubah status & role |
+| **Manajemen Grup** | Kelola grup tim pengelola & hak akses modul / sub-modul CMS secara spesifik |
 | **Manajemen Menu** | Atur menu header (show/hide, urutan, tambah/hapus) |
 | **File Manager** | Browse semua file (media, arsip, galeri) |
 | **Pengaturan Situs** | Nama, logo, favicon, kontak, sosial media, SEO, fitur header |

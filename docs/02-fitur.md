@@ -64,14 +64,17 @@
 - Membership tab dengan card info + download PDF
 - Certificates tab dengan grid e-certificate
 - Events tab dengan riwayat pendaftaran
+- **Digital Library Anggota** — Tab khusus untuk mengakses koleksi internal/khusus Anggota IAA
 - Profile tab dengan data lengkap + riwayat pelatihan & sertifikasi
 
-### 9. Admin Dashboard
+### 9. Admin Dashboard & Dynamic Member Management
 - 4 stat cards dengan trend badges
 - 3 Recharts (Area chart tren sertifikat, Pie chart jenjang, Bar chart status)
-- Pending approval card
-- Recent members, articles, upcoming events
-- Quick access cards untuk 6 modul admin
+- **Pencarian & Filter Dinamis Anggota**:
+  - Multi-field text search instant (Nama, No. Anggota, NIP, Instansi, Jabatan, Email)
+  - Filter dropdown dinamis: Status Keanggotaan, Jenjang Arsiparis, Hak Akses Role, Unit Kerja / Instansi
+  - Fitur pengurutan: Nomor Anggota, Nama A-Z, Tanggal Bergabung, Jenjang (dengan toggle Ascending/Descending)
+  - Active filter chips dengan tombol Hapus (X) per item & reset paginasi otomatis
 
 ---
 
@@ -79,7 +82,7 @@
 
 ### 10. CMS Berita (Articles)
 - Full CRUD (create, read, update, delete)
-- **Rich Text Editor** (MDXEditor) — Bold, italic, headings, lists, quote, link
+- **Rich Text Editor** (MDXEditor) — Bold, italic, headings, lists, quote, link toolbar (`CreateLink`)
 - **Draft & Schedule** — Status: DRAFT/SCHEDULED/PUBLISHED/ARCHIVED
 - **SEO Metadata** — Meta title, description, keywords, OG image
 - **SEO Preview** — Google search + social media card preview
@@ -97,11 +100,24 @@
 - Kuota peserta + registration toggle
 - Progress bar kuota terisi
 
-### 12. CMS Digital Library
+### 12. CMS Digital Library & Dokumen
 - Full CRUD dengan 11 kategori (BUKU, EBOOK, JURNAL, PEDOMAN, REGULASI, SOP, TEMPLATE, PRESENTASI, MAJALAH, VIDEO, AUDIO)
-- Rich Text Editor untuk deskripsi
-- Filter by kategori
-- Download/view counter
+- **Aksesibilitas Ganda**: Pilihan publik (`PUBLIK`) atau khusus anggota (`ANGGOTA`)
+- **Direct File Upload**: Upload file PDF, EPUB, DOCX, ZIP, MP3, MP4 langsung dari admin (`/api/library/upload`)
+- **Wide Dialog Modal**: Pop-up form editor ekstra lebar (`max-w-4xl lg:max-w-5xl`) tanpa geser-geser
+- Download & view counter tracking
+
+### 13. Granular CMS Sub-Module Permissions (Manajemen Grup)
+- Breakdown hak akses CMS menjadi sub-modul mandiri:
+  - `cms-articles` — Berita & Artikel
+  - `cms-events` — Agenda Kegiatan
+  - `cms-library` — Digital Library & Dokumen
+  - `cms-gallery` — Galeri Foto
+  - `cms-organization` — Struktur Pengurus
+  - `cms-announcements` — Pengumuman & Banner
+  - `cms-faq` — Pertanyaan FAQ
+- Visual indicator dengan inden (`↳`) dan badge *Sub-Modul CMS* di tabel permission grup
+- Otomatis menyembunyikan tab CMS yang tidak diizinkan untuk grup pengguna tersebut
 
 ### 13. CMS Galeri Foto
 - Album CRUD

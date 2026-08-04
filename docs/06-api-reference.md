@@ -60,8 +60,9 @@ Cookie: iaa_session=<userId>
 
 | Method | Endpoint | Auth | Deskripsi |
 |--------|----------|------|-----------|
-| `GET` | `/api/library` | — | List published items (`?limit=`, `?category=`, `?admin=true`) |
+| `GET` | `/api/library` | — | List published items (`?limit=`, `?category=`, `?accessLevel=`, `?admin=true`) |
 | `POST` | `/api/library` | Pengurus+ | Create library item |
+| `POST` | `/api/library/upload` | Pengurus+ | Upload digital library document (PDF, EPUB, DOCX, ZIP, etc.) |
 | `PATCH` | `/api/library?id=xxx` | Pengurus+ | Update library item |
 | `DELETE` | `/api/library?id=xxx` | Pengurus+ | Delete library item |
 

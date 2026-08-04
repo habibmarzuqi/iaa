@@ -149,15 +149,25 @@ User Input (email + password)
   Redirect: Anggota → Member Dashboard, Admin → Admin Dashboard
 ```
 
-## Role Hierarchy
+## Role Hierarchy & Permission Architecture
 
 ```
-SUPER_ADMIN  → Full access (delete archives, restore backup, delete media)
-ADMINISTRATOR → CRUD all content + approve/reject registrations
-PENGURUS     → CRUD content + view dashboard + approve/reject
-ANGGOTA      → View own dashboard + register events + download certificates
+SUPER_ADMIN  → Full unrestricted access (delete archives, restore backup, group management, system config)
+ADMINISTRATOR → Full access to assigned admin modules (or fallback unrestricted if not in a group)
+PENGURUS     → Module access controlled by assigned Groups & Module Permissions (e.g. Tim Humas, Tim Perpustakaan)
+ANGGOTA      → Member Dashboard access, Digital Library Anggota, register events, download certificates
 GUEST        → View public website only
 ```
+
+### Sub-Modul Permission Granularity (CMS)
+- `admin-cms` — Access to all CMS sections (Semua Akses Bagian)
+- `cms-articles` — Berita & Artikel
+- `cms-events` — Agenda Kegiatan
+- `cms-library` — Digital Library & Dokumen
+- `cms-gallery` — Galeri Foto
+- `cms-organization` — Struktur Pengurus
+- `cms-announcements` — Pengumuman & Banner
+- `cms-faq` — Pertanyaan FAQ
 
 ## Dependencies Lengkap
 
