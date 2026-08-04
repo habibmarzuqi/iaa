@@ -46,22 +46,70 @@ export default function Home() {
       .catch(() => {})
   }, [setUser])
 
-  // Deep link support
+  // Listen for browser Back/Forward (popstate) events
   useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state?.view) {
+        setView(e.state.view, { skipPushState: true })
+      } else {
+        const params = new URLSearchParams(window.location.search)
+        const viewName = params.get('view')
+        const eventSlug = params.get('event')
+        const newsSlug = params.get('news')
+        const verifyCert = params.get('verify')
+        const certsEmail = params.get('certs')
+
+        if (newsSlug) {
+          setView({ name: 'news-detail', slug: newsSlug }, { skipPushState: true })
+        } else if (eventSlug) {
+          setView({ name: 'event-detail', slug: eventSlug }, { skipPushState: true })
+        } else if (verifyCert) {
+          setView({ name: 'verify-certificate' }, { skipPushState: true })
+        } else if (certsEmail) {
+          setView({ name: 'my-certificates' }, { skipPushState: true })
+        } else if (viewName) {
+          setView({ name: viewName as any }, { skipPushState: true })
+        } else {
+          setView({ name: 'public' }, { skipPushState: true })
+        }
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+
+    // Initial page load deep link parse
     const params = new URLSearchParams(window.location.search)
+    const viewName = params.get('view')
     const eventSlug = params.get('event')
     const newsSlug = params.get('news')
     const verifyCert = params.get('verify')
     const certsEmail = params.get('certs')
+
+    let initialView: any = null
     if (eventSlug) {
-      setView({ name: 'event-detail', slug: eventSlug })
+      initialView = { name: 'event-detail', slug: eventSlug }
     } else if (newsSlug) {
-      setView({ name: 'news-detail', slug: newsSlug })
+      initialView = { name: 'news-detail', slug: newsSlug }
     } else if (verifyCert) {
-      setView({ name: 'verify-certificate' })
+      initialView = { name: 'verify-certificate' }
     } else if (certsEmail) {
-      setView({ name: 'my-certificates' })
+      initialView = { name: 'my-certificates' }
+    } else if (viewName) {
+      initialView = { name: viewName as any }
     }
+
+    if (initialView) {
+      setView(initialView, { skipPushState: true })
+      try {
+        window.history.replaceState({ view: initialView }, '', window.location.href)
+      } catch {}
+    } else {
+      try {
+        window.history.replaceState({ view: { name: 'public' } }, '', '/')
+      } catch {}
+    }
+
+    return () => window.removeEventListener('popstate', handlePopState)
   }, [setView])
 
   // Helper: render admin view by name

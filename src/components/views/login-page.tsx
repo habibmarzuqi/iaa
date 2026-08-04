@@ -13,7 +13,7 @@ import { ArrowLeft, Eye, EyeOff, Lock, Mail, ShieldCheck, Sparkles, Loader2, Key
 import { toast } from 'sonner'
 
 export function LoginPage() {
-  const { setUser, setView } = useApp()
+  const { setUser, setView, goBack } = useApp()
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [show, setShow] = React.useState(false)
@@ -38,9 +38,7 @@ export function LoginPage() {
         return
       }
       setUser(data.user)
-      toast.success(`Selamat datang, ${data.user.name.split(',')[0]}!`)
-
-      // Route based on role
+      toast.success(`Selamat datang kembali, ${data.user.name}!`)
       if (data.user.role === 'ANGGOTA') {
         setView({ name: 'member-dashboard' })
       } else {
@@ -59,10 +57,10 @@ export function LoginPage() {
       {/* Left: form */}
       <div className="flex flex-col p-6 lg:p-10 bg-background">
         <button
-          onClick={() => setView({ name: 'public' })}
+          onClick={goBack}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-navy dark:hover:text-white transition-colors w-fit"
         >
-          <ArrowLeft className="h-4 w-4" /> Kembali ke Beranda
+          <ArrowLeft className="h-4 w-4" /> Kembali
         </button>
 
         <div className="flex-1 flex items-center justify-center py-10">

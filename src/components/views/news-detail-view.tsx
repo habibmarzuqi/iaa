@@ -20,7 +20,7 @@ interface Article {
 }
 
 export function NewsDetailView({ slug }: { slug: string }) {
-  const { setView } = useApp()
+  const { setView, goBack } = useApp()
   const [article, setArticle] = React.useState<Article | null>(null)
   const [related, setRelated] = React.useState<Article[]>([])
   const [loading, setLoading] = React.useState(true)
@@ -104,8 +104,8 @@ export function NewsDetailView({ slug }: { slug: string }) {
       <div className="bg-hero-gradient text-white py-12 lg:py-16 relative overflow-hidden">
         <div className="absolute inset-0 bg-grid opacity-30" />
         <div className="relative mx-auto max-w-3xl px-4 lg:px-8">
-          <Button variant="ghost" onClick={() => setView({ name: 'news-list' })} className="text-white/70 hover:text-white hover:bg-white/10 mb-4 -ml-2">
-            <ArrowLeft className="mr-1 h-4 w-4" /> Semua Berita
+          <Button variant="ghost" onClick={goBack} className="text-white/70 hover:text-white hover:bg-white/10 mb-4 -ml-2">
+            <ArrowLeft className="mr-1 h-4 w-4" /> Kembali
           </Button>
           <Badge className="bg-gold text-navy hover:bg-gold mb-3">{article.category}</Badge>
           <h1 className="font-display text-3xl lg:text-4xl font-extrabold leading-tight">{article.title}</h1>

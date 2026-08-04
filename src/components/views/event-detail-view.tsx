@@ -35,7 +35,7 @@ const EVENT_ICONS: Record<string, any> = {
 }
 
 export function EventDetailView({ slug }: { slug: string }) {
-  const { setView, user } = useApp()
+  const { user, setView, goBack } = useApp()
   const [event, setEvent] = React.useState<EventDetail | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [registering, setRegistering] = React.useState(false)
@@ -224,8 +224,8 @@ export function EventDetailView({ slug }: { slug: string }) {
       <div className="bg-hero-gradient text-white py-12 lg:py-16 relative overflow-hidden">
         <div className="absolute inset-0 bg-grid opacity-30" />
         <div className="relative mx-auto max-w-5xl px-4 lg:px-8">
-          <Button variant="ghost" onClick={() => setView({ name: 'event-list' })} className="text-white/70 hover:text-white hover:bg-white/10 mb-4 -ml-2">
-            <ArrowLeft className="mr-1 h-4 w-4" /> Semua Agenda
+          <Button variant="ghost" onClick={goBack} className="text-white/70 hover:text-white hover:bg-white/10 mb-4 -ml-2">
+            <ArrowLeft className="mr-1 h-4 w-4" /> Kembali
           </Button>
           <div className="flex items-center gap-3 mb-4 flex-wrap">
             <div className="grid h-12 w-12 place-items-center rounded-xl bg-gold/20 border border-gold/30 backdrop-blur">

@@ -57,28 +57,63 @@ export type View =
   | { name: 'register' }                     // public registration page
   | { name: 'chat' }                         // AI chatbot page
 
+export function getUrlForView(v: View): string {
+  if (v.name === 'public') return '/'
+  if (v.name === 'news-detail' && 'slug' in v && v.slug) return `/?news=${encodeURIComponent(v.slug)}`
+  if (v.name === 'event-detail' && 'slug' in v && v.slug) return `/?event=${encodeURIComponent(v.slug)}`
+  if (v.name === 'verify-certificate') return '/?verify=1'
+  if (v.name === 'my-certificates') return '/?certs=1'
+  return `/?view=${encodeURIComponent(v.name)}`
+}
+
+export interface SetViewOptions {
+  skipPushState?: boolean
+}
+
 interface AppState {
   user: SessionUser | null
   view: View
   setUser: (u: SessionUser | null) => void
-  setView: (v: View) => void
+  setView: (v: View, options?: SetViewOptions) => void
+  goBack: () => void
   logout: () => void
-  // theme is handled by next-themes, not here
 }
 
 export const useApp = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       view: { name: 'public' },
       setUser: (u) => set({ user: u }),
-      setView: (v) => {
+      setView: (v, options) => {
         set({ view: v })
         if (typeof window !== 'undefined') {
+          if (!options?.skipPushState) {
+            const url = getUrlForView(v)
+            try {
+              window.history.pushState({ view: v }, '', url)
+            } catch {}
+          }
           window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
         }
       },
-      logout: () => set({ user: null, view: { name: 'public' } }),
+      goBack: () => {
+        if (typeof window !== 'undefined') {
+          if (window.history.length > 1) {
+            window.history.back()
+          } else {
+            get().setView({ name: 'public' })
+          }
+        }
+      },
+      logout: () => {
+        set({ user: null, view: { name: 'public' } })
+        if (typeof window !== 'undefined') {
+          try {
+            window.history.pushState({ view: { name: 'public' } }, '', '/')
+          } catch {}
+        }
+      },
     }),
     {
       name: 'iaa-digital-store',

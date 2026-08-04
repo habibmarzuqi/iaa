@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import {
   LayoutDashboard, Archive, Award, CalendarCheck, FileBarChart,
   LogOut, ChevronRight, BookOpen, Settings, Globe, FolderOpen, Palette, ListOrdered,
-  Users, Image as ImageIcon, Inbox as InboxIcon, Shield,
+  Users, Image as ImageIcon, Inbox as InboxIcon, Shield, ArrowLeft,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/i18n'
@@ -95,7 +95,7 @@ export function AdminShell({
   children: React.ReactNode
   actions?: React.ReactNode
 }) {
-  const { user, setView, logout } = useApp()
+  const { user, setView, logout, goBack } = useApp()
   const { t } = useTranslation()
   const [unreadInbox, setUnreadInbox] = React.useState(0)
   const { loading: permsLoading, canView } = usePermissions()
@@ -222,10 +222,22 @@ export function AdminShell({
 
           {/* Main content */}
           <main className="space-y-6 min-w-0">
-            <div className="flex items-end justify-between gap-4 flex-wrap">
-              <div>
-                <h1 className="font-display text-2xl lg:text-3xl font-extrabold text-navy dark:text-white">{title}</h1>
-                {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
+            <div className="flex items-center justify-between gap-4 flex-wrap pb-3 border-b border-border/40">
+              <div className="flex items-center gap-3">
+                {activeKey !== 'dashboard' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goBack}
+                    className="h-9 px-3 gap-1.5 text-xs font-semibold text-navy dark:text-white border-border hover:bg-muted"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" /> Kembali
+                  </Button>
+                )}
+                <div>
+                  <h1 className="font-display text-2xl lg:text-3xl font-extrabold text-navy dark:text-white leading-tight">{title}</h1>
+                  {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+                </div>
               </div>
               {actions && <div className="flex gap-2">{actions}</div>}
             </div>
