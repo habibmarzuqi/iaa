@@ -320,7 +320,7 @@ export function AdminEventsView() {
               className="border-emerald-400/40 text-emerald-600 hover:bg-emerald-50"
             >
               {bulkApproving ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <CheckCheck className="mr-2 h-3.5 w-3.5" />}
-              Approve Semua Pending
+              Setujui Semua Pending
             </Button>
             <Button
               size="sm"
@@ -416,11 +416,11 @@ export function AdminEventsView() {
                               <>
                                 <Button size="sm" variant="outline" className="h-7 text-[10px] border-emerald-400/40 text-emerald-600 hover:bg-emerald-50"
                                   onClick={(e) => { e.stopPropagation(); handleAction(r, 'approve') }}>
-                                  <Check className="h-3 w-3 mr-1" /> Approve
+                                  <Check className="h-3 w-3 mr-1" /> Setujui
                                 </Button>
                                 <Button size="sm" variant="outline" className="h-7 text-[10px] border-red-400/40 text-red-600 hover:bg-red-50"
                                   onClick={(e) => { e.stopPropagation(); handleAction(r, 'reject') }}>
-                                  <XCircle className="h-3 w-3 mr-1" /> Reject
+                                  <XCircle className="h-3 w-3 mr-1" /> Tolak
                                 </Button>
                               </>
                             )}
@@ -625,10 +625,10 @@ export function AdminEventsView() {
                   {selectedReg.status === 'PENDING' && (
                     <>
                       <Button onClick={() => handleAction(selectedReg, 'approve')} className="bg-emerald-600 hover:bg-emerald-700">
-                        <Check className="mr-2 h-4 w-4" /> Approve
+                        <Check className="mr-2 h-4 w-4" /> Setujui
                       </Button>
                       <Button onClick={() => handleAction(selectedReg, 'reject')} variant="outline" className="border-red-400/40 text-red-600 hover:bg-red-50">
-                        <XCircle className="mr-2 h-4 w-4" /> Reject
+                        <XCircle className="mr-2 h-4 w-4" /> Tolak
                       </Button>
                     </>
                   )}
@@ -672,7 +672,7 @@ export function AdminEventsView() {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-navy dark:text-white">
-                <CheckCheck className="h-5 w-5 text-emerald-600" /> Approve Massal
+                <CheckCheck className="h-5 w-5 text-emerald-600" /> Persetujuan Massal
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-3 py-2">
@@ -680,14 +680,14 @@ export function AdminEventsView() {
                 <p>Semua pendaftaran dengan status <strong>PENDING</strong>{filterEvent !== 'ALL' ? ' untuk kegiatan terpilih' : ''} akan disetujui sekaligus.</p>
               </div>
               <p className="text-xs text-muted-foreground">
-                Pastikan Anda sudah meninjau semua pendaftar sebelum approve massal. Tindakan ini tidak bisa dibatalkan.
+                Pastikan Anda sudah meninjau semua pendaftar sebelum persetujuan massal. Tindakan ini tidak bisa dibatalkan.
               </p>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setBulkDialogOpen(null)}>Batal</Button>
               <Button onClick={bulkApprove} disabled={bulkApproving} className="bg-emerald-600 hover:bg-emerald-700">
                 {bulkApproving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCheck className="mr-2 h-4 w-4" />}
-                Approve Semua
+                Setujui Semua
               </Button>
             </DialogFooter>
           </DialogContent>

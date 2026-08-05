@@ -43,7 +43,44 @@ interface Member {
   user: { email: string; role: string; avatar: string | null }
 }
 
-const LEVELS = ['PEMULA', 'TERAMPIL', 'MAHIR', 'PENYELIA', 'AHLI PERTAMA', 'AHLI MUDA', 'AHLI MADYA', 'AHLI UTAMA', 'MUDA', 'MADYA', 'UTAMA']
+const POSITIONS = [
+  'Arsiparis Ahli Utama',
+  'Arsiparis Ahli Madya',
+  'Arsiparis Ahli Muda',
+  'Arsiparis Ahli Pertama',
+  'Arsiparis Penyelia',
+  'Arsiparis Mahir',
+  'Arsiparis Terampil',
+]
+
+const WORK_UNITS = [
+  'Sekretariat Utama',
+  'Deputi Bidang Tata Kelola Kearsipan Nasional',
+  'Deputi Bidang Penyelamatan, Pelestarian, dan Pelindungan Arsip',
+  'Deputi Bidang Sistem dan Informasi Kearsipan Nasional',
+  'Biro Manajemen Kinerja, Keuangan, dan Organisasi',
+  'Biro Hukum, Kerja Sama, dan Hubungan Masyarakat',
+  'Biro Kepegawaian dan Umum',
+  'Direktorat Kearsipan Pusat',
+  'Direktorat Kearsipan Daerah I',
+  'Direktorat Kearsipan Daerah II',
+  'Direktorat SDM Kearsipan dan Sertifikasi',
+  'Direktorat Penyelamatan Arsip',
+  'Direktorat Pengolahan Arsip',
+  'Direktorat Pelestarian dan Pelindungan Arsip',
+  'Direktorat Layanan dan Pemanfaatan Arsip',
+  'Direktorat Informasi Kearsipan',
+  'Direktorat Teknologi Informasi Kearsipan',
+  'Direktorat Sistem Kearsipan',
+  'Balai Arsip Statis dan Tsunami',
+  'Pusat Pengawasan dan Akreditasi Kearsipan',
+  'Pusat Pelatihan Sumber Daya Manusia',
+  'Pusat Data, Informasi, dan Jasa Teknis Kearsipan',
+  'Pusat Studi Arsip Statis Kepresidenan',
+  'Inspektorat',
+]
+
+const LEVELS = ['Arsiparis Ahli Utama', 'Arsiparis Ahli Madya', 'Arsiparis Ahli Muda', 'Arsiparis Ahli Pertama', 'Arsiparis Penyelia', 'Arsiparis Mahir', 'Arsiparis Terampil', 'PEMULA', 'TERAMPIL', 'MAHIR', 'PENYELIA', 'AHLI PERTAMA', 'AHLI MUDA', 'AHLI MADYA', 'AHLI UTAMA']
 const STATUSES = ['AKTIF', 'PENDING', 'REJECTED', 'TIDAK_AKTIF', 'PENSIUN', 'MENINGGAL']
 const ROLES = ['ANGGOTA', 'PENGURUS', 'ADMINISTRATOR', 'SUPER_ADMIN']
 
@@ -352,18 +389,18 @@ export function AdminMembersView() {
             </div>
 
             {/* Unit Kerja Filter */}
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
                 <Building2 className="h-3 w-3 text-purple-500" /> Unit Kerja / Instansi
               </label>
               <Select value={filterWorkUnit} onValueChange={(v) => { setFilterWorkUnit(v); setPage(1) }}>
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-8 text-xs w-full min-w-0">
                   <SelectValue placeholder="Semua Unit Kerja" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-60 overflow-y-auto max-w-[calc(100vw-2rem)] sm:max-w-md">
                   <SelectItem value="ALL">Semua Instansi ({availableWorkUnits.length})</SelectItem>
                   {availableWorkUnits.map((w) => (
-                    <SelectItem key={w} value={w}>{w}</SelectItem>
+                    <SelectItem key={w} value={w} className="text-xs whitespace-normal break-words">{w}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -515,7 +552,7 @@ export function AdminMembersView() {
                             ? 'border-red-400/40 text-red-600 bg-red-50 dark:bg-red-950/40'
                             : 'border-slate-400/40 text-slate-500'
                         }`}>
-                          {m.status === 'PENDING' ? '⏳ MENUNGU APPROVAL' : m.status}
+                          {m.status === 'PENDING' ? '⏳ MENUNGGU PERSETUJUAN' : m.status}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
@@ -701,6 +738,22 @@ function MemberDialog({ open, onOpenChange, member, onSaved }: {
     }
   }, [member, open])
 
+  const activeWorkUnits = React.useMemo(() => {
+    const list = [...WORK_UNITS]
+    if (form.workUnit && !list.includes(form.workUnit)) {
+      list.unshift(form.workUnit)
+    }
+    return list
+  }, [form.workUnit])
+
+  const activePositions = React.useMemo(() => {
+    const list = [...POSITIONS]
+    if (form.position && !list.includes(form.position)) {
+      list.unshift(form.position)
+    }
+    return list
+  }, [form.position])
+
   const handlePhotoUpload = async (file: File) => {
     setUploadingPhoto(true)
     try {
@@ -812,35 +865,53 @@ function MemberDialog({ open, onOpenChange, member, onSaved }: {
           </div>
 
           <div className="grid sm:grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Jabatan</Label>
-              <Input value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} placeholder="Arsiparis Muda" />
+            <div className="space-y-2 min-w-0">
+              <Label>Unit Kerja / Instansi</Label>
+              <Select value={form.workUnit} onValueChange={(v) => setForm({ ...form, workUnit: v })}>
+                <SelectTrigger className="h-10 w-full min-w-0">
+                  <SelectValue placeholder="Pilih Unit Kerja ANRI" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60 overflow-y-auto max-w-[calc(100vw-2rem)] sm:max-w-md">
+                  {activeWorkUnits.map((u) => (
+                    <SelectItem key={u} value={u} className="text-xs sm:text-sm leading-snug py-2 whitespace-normal break-words">{u}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Unit Kerja</Label>
-              <Input value={form.workUnit} onChange={(e) => setForm({ ...form, workUnit: e.target.value })} placeholder="ANRI - Pusat Konservasi" />
+            <div className="space-y-2 min-w-0">
+              <Label>Jabatan / Jenjang Arsiparis</Label>
+              <Select value={form.position} onValueChange={(v) => {
+                let lvl = 'PEMULA'
+                if (v.includes('Utama')) lvl = 'UTAMA'
+                else if (v.includes('Madya')) lvl = 'MADYA'
+                else if (v.includes('Muda')) lvl = 'MUDA'
+                setForm({ ...form, position: v, arsiparisLevel: lvl })
+              }}>
+                <SelectTrigger className="h-10 w-full min-w-0">
+                  <SelectValue placeholder="Pilih Jenjang Arsiparis" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60 overflow-y-auto">
+                  {activePositions.map((p) => (
+                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="grid sm:grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Jenjang Arsiparis</Label>
-              <Select value={form.arsiparisLevel} onValueChange={(v) => setForm({ ...form, arsiparisLevel: v === 'none' ? '' : v })}>
-                <SelectTrigger><SelectValue placeholder="Pilih jenjang" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— Tidak ada —</SelectItem>
-                  {LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
+              <Label>Status Anggota</Label>
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tanggal Bergabung</Label>
+              <Input type="date" value={form.joinDate} onChange={(e) => setForm({ ...form, joinDate: e.target.value })} />
             </div>
           </div>
 

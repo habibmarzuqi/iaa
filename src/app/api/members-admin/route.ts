@@ -22,6 +22,21 @@ function hashPassword(password: string): string {
   return createHash('sha256').update(password).digest('hex')
 }
 
+function parseArsiparisLevel(val: any): 'PEMULA' | 'MUDA' | 'MADYA' | 'UTAMA' | null {
+  if (!val || typeof val !== 'string') return null
+  const upper = val.toUpperCase().trim()
+  if (['PEMULA', 'MUDA', 'MADYA', 'UTAMA'].includes(upper)) {
+    return upper as 'PEMULA' | 'MUDA' | 'MADYA' | 'UTAMA'
+  }
+  if (upper.includes('UTAMA')) return 'UTAMA'
+  if (upper.includes('MADYA')) return 'MADYA'
+  if (upper.includes('MUDA')) return 'MUDA'
+  if (upper.includes('PEMULA') || upper.includes('PERTAMA') || upper.includes('PENYELIA') || upper.includes('MAHIR') || upper.includes('TERAMPIL')) {
+    return 'PEMULA'
+  }
+  return null
+}
+
 function slugify(s: string): string {
   return s.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 80)
 }
@@ -162,7 +177,7 @@ export async function POST(req: NextRequest) {
         photo: photo || null,
         workUnit: workUnit || null,
         position: position || null,
-        arsiparisLevel: arsiparisLevel || null,
+        arsiparisLevel: parseArsiparisLevel(arsiparisLevel || position),
         education: education || null,
         trainingHistory: trainingHistory || null,
         certificationHistory: certificationHistory || null,
@@ -306,7 +321,7 @@ export async function PATCH(req: NextRequest) {
         ...(photo !== undefined && { photo }),
         ...(workUnit !== undefined && { workUnit }),
         ...(position !== undefined && { position }),
-        ...(arsiparisLevel !== undefined && { arsiparisLevel }),
+        ...(arsiparisLevel !== undefined && { arsiparisLevel: parseArsiparisLevel(arsiparisLevel || position) }),
         ...(education !== undefined && { education }),
         ...(trainingHistory !== undefined && { trainingHistory }),
         ...(certificationHistory !== undefined && { certificationHistory }),

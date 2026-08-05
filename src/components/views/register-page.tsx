@@ -287,25 +287,25 @@ export function RegisterPage() {
                   </div>
 
                   {/* Dropdown Unit Kerja */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 min-w-0">
                     <Label>Unit Kerja / Instansi</Label>
                     <Select value={form.workUnit} onValueChange={(v) => setForm({ ...form, workUnit: v })}>
-                      <SelectTrigger className="h-10">
+                      <SelectTrigger className="h-10 w-full min-w-0">
                         <SelectValue placeholder="Pilih Unit Kerja ANRI" />
                       </SelectTrigger>
-                      <SelectContent className="max-h-60 overflow-y-auto">
+                      <SelectContent className="max-h-60 overflow-y-auto max-w-[calc(100vw-2rem)] sm:max-w-md">
                         {WORK_UNITS.map((u) => (
-                          <SelectItem key={u} value={u}>{u}</SelectItem>
+                          <SelectItem key={u} value={u} className="text-xs sm:text-sm leading-snug py-2 whitespace-normal break-words">{u}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
 
                   {/* Dropdown Jabatan / Jenjang */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 min-w-0">
                     <Label>Jabatan / Jenjang Arsiparis</Label>
                     <Select value={form.position} onValueChange={(v) => setForm({ ...form, position: v })}>
-                      <SelectTrigger className="h-10">
+                      <SelectTrigger className="h-10 w-full min-w-0">
                         <SelectValue placeholder="Pilih Jenjang Arsiparis" />
                       </SelectTrigger>
                       <SelectContent>
